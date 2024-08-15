@@ -93,4 +93,5 @@ func readMedia() {
 		}
 		search.Index(media.Title, mediaId)
 	}
+	log.Info().Msg("done reading media")
 }

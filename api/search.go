@@ -56,10 +56,14 @@ func getTrigrams(s string) []string {
 
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
+	lowerQuery := strings.ToLower(query)
 	ids := search.Search(query)
 	var results []Media
 	for _, id := range ids {
-		results = append(results, mediaMap[id])
+		media := mediaMap[id]
+		if strings.Contains(strings.ToLower(media.Title), lowerQuery) {
+			results = append(results, mediaMap[id])
+		}
 	}
 	result := map[string][]Media{}
 	result["results"] = results

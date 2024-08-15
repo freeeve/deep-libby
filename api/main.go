@@ -21,8 +21,8 @@ var s3Client *s3.Client
 
 func main() {
 	log.Info().Msg("reading initial data")
-	readMedia()
-	//readLibraries()
+	go readLibraries()
+	go readMedia()
 	readAvailability()
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -35,6 +35,8 @@ func main() {
 	apiServeMux := http.NewServeMux()
 	apiServeMux.HandleFunc("GET /api/search", searchHandler)
 	apiServeMux.HandleFunc("GET /api/availability", availabilityHandler)
+	apiServeMux.HandleFunc("GET /api/diff", diffHandler)
+	apiServeMux.HandleFunc("GET /api/intersect", intersectHandler)
 
 	rootServeMux.Handle("/ui/", uiServeMux)
 	rootServeMux.Handle("/api/", apiServeMux)

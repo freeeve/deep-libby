@@ -1,0 +1,67 @@
+package main
+
+import (
+	"compress/gzip"
+	"context"
+	"encoding/csv"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/rs/zerolog/log"
+	"io"
+	"strconv"
+)
+
+type Library struct {
+	Id           string `json:"id"`
+	WebsiteId    int    `json:"websiteId"`
+	Name         string `json:"name"`
+	IsConsortium bool   `json:"isConsortium"`
+}
+
+var libraryMap map[int]Library
+
+func readLibraries() {
+	libraryMap = make(map[int]Library)
+	s3Path := "libraries.csv.gz"
+	if s3Client == nil {
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Error().Err(err)
+		}
+		s3Client = s3.NewFromConfig(cfg)
+	}
+	resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String("deep-libby"),
+		Key:    aws.String(s3Path),
+	})
+	if err != nil {
+		log.Error().Err(err)
+	}
+	defer resp.Body.Close()
+	gzr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		log.Error().Err(err)
+	}
+	cr := csv.NewReader(gzr)
+	for {
+		record, err := cr.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Error().Err(err)
+		}
+		websiteId, err := strconv.Atoi(record[1])
+		if err != nil {
+			log.Error().Err(err)
+		}
+		libraryMap[websiteId] = Library{
+			Id:           record[0],
+			WebsiteId:    websiteId,
+			Name:         record[2],
+			IsConsortium: record[3] == "true",
+		}
+	}
+	log.Info().Msg("done reading libraries")
+}
