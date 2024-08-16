@@ -34,12 +34,28 @@ func main() {
 
 	apiServeMux := http.NewServeMux()
 	apiServeMux.HandleFunc("GET /api/search", searchHandler)
+	apiServeMux.HandleFunc("GET /api/libraries", librariesHandler)
 	apiServeMux.HandleFunc("GET /api/availability", availabilityHandler)
 	apiServeMux.HandleFunc("GET /api/diff", diffHandler)
 	apiServeMux.HandleFunc("GET /api/intersect", intersectHandler)
 
+	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+		// If it's a preflight request, respond immediately
+		if r.Method == "OPTIONS" {
+			return
+		}
+
+		// Otherwise, pass the request on to the original ServeMux
+		apiServeMux.ServeHTTP(w, r)
+	})
+
 	rootServeMux.Handle("/ui/", uiServeMux)
-	rootServeMux.Handle("/api/", apiServeMux)
+	rootServeMux.Handle("/api/", corsAPIMux)
 
 	port := "8080"
 	log.Info().Str("port", port).Msg("starting server")

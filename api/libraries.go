@@ -4,11 +4,13 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rs/zerolog/log"
 	"io"
+	"net/http"
 	"strconv"
 )
 
@@ -17,6 +19,10 @@ type Library struct {
 	WebsiteId    int    `json:"websiteId"`
 	Name         string `json:"name"`
 	IsConsortium bool   `json:"isConsortium"`
+}
+
+type LibraryResponse struct {
+	Libraries []Library `json:"libraries"`
 }
 
 var libraryMap map[int]Library
@@ -64,4 +70,18 @@ func readLibraries() {
 		}
 	}
 	log.Info().Msg("done reading libraries")
+}
+
+func librariesHandler(w http.ResponseWriter, r *http.Request) {
+	if libraryMap == nil {
+		readLibraries()
+	}
+	libraries := make([]Library, 0, len(libraryMap))
+	for _, library := range libraryMap {
+		libraries = append(libraries, library)
+	}
+	err := json.NewEncoder(w).Encode(LibraryResponse{libraries})
+	if err != nil {
+		log.Error().Err(err)
+	}
 }

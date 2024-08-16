@@ -43,6 +43,9 @@ func (s *SearchIndex) Search(query string) []uint64 {
 			results.And(s.trigramMap[trigram])
 		}
 	}
+	if results == nil {
+		return []uint64{}
+	}
 	return results.ToArray()
 }
 

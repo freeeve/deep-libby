@@ -1,95 +1,130 @@
+'use client';
+
 import Image from "next/image";
 import styles from "./page.module.css";
+import {useEffect, useState} from "react";
+import Select from "react-select/base";
+import SearchWindow from "./search-window";
+import AsyncSelect from "react-select/async";
 
 export default function Home() {
-  return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+
+    const [data, setData] = useState({results: []});
+    let selectedOption = null;
+    const [selectedBook, setSelectedBook] = useState(null);
+
+    useEffect(() => {
+        //let url = new URL('/api/search', window.location.origin);
+        let url = new URL('/api/search', 'http://localhost:8080/');
+        let params = {q: 'covenant'};
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+        fetch(url, {
+            method: 'GET',
+        })
+            .then(response => response.json())
+            .then(data => setData(data))
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }, []);
+
+    const loadOptions = (inputValue, callback) => {
+        let url = new URL('/api/search', 'http://localhost:8080/');
+        let params = {q: inputValue};
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+        fetch(url, {
+            method: 'GET',
+        })
+            .then(response => response.json())
+            .then(data => callback(data.results))
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+
+
+    const formatOptionLabel = ({title, creators, formats, coverUrl}) => (
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div>
+                <div><strong>{title}</strong></div>
+                {creators.map((creator, index) => (
+                    <div key={index}>{creator.name} ({creator.role})</div>
+                ))}
+                <div>{formats.join(', ')}</div>
+            </div>
+            <img src={coverUrl} alt={title} style={{height: 50, marginLeft: 10}}/>
         </div>
-      </div>
+    );
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    const customStyles = {
+        control: (provided) => ({
+            ...provided,
+            width: 800, // You can adjust this value as needed
+            backgroundColor: 'rgba(255, 255, 255, 0.1)', // Adjust this as needed
+        }),
+        option: (provided, state) => ({
+            ...provided,
+            backgroundColor: 'rgba(0 , 0, 0, 0.8)',
+            color: 'white',
+        }),
+        singleValue: (provided) => ({
+            ...provided,
+            color: 'white',
+        }),
+    };
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+    const handleChange = (selectedOption) => {
+        // Fetch the availability data
+        fetch(`http://localhost:8080/api/availability?id=${selectedOption.id}`)
+            .then((response) => response.json())
+            .then((data) => {
+                // Update the state with the selected book's details and availability data
+                setSelectedBook({ ...selectedOption, availability: data.availability });
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    };
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+    return (
+        <main className={styles.main}>
+            <div>
+                <AsyncSelect
+                    loadOptions={loadOptions}
+                    formatOptionLabel={formatOptionLabel}
+                    styles={customStyles}
+                    components={{
+                        MenuList: SearchWindow
+                    }}
+                    onChange={handleChange} // Use the handleChange function here
+                />
+                {selectedBook && (
+                    <div>
+                        {/* Display the selected book's details and availability data */}
+                        <h2>{selectedBook.title}</h2>
+                        <Image src={selectedBook.coverUrl}
+                               alt={selectedBook.title}
+                               width={0} height={0}
+                               sizes="100vw"
+                               style={{ width: 'auto', height: '100px' }} // optional
+                        />
+                        <p>{selectedBook.description}</p>
+                        {/* ...other details... */}
+                        {selectedBook.availability.map((availability, index) => (
+                            <div key={index}>
+                                <h3>{availability.library.name}</h3>
+                                <p>Owned: {availability.ownedCount}</p>
+                                <p>Available: {availability.availableCount}</p>
+                                <p>Holds: {availability.holdsCount}</p>
+                                <p>Estimated Wait Days: {availability.estimatedWaitDays}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </main>
+    );
 }
