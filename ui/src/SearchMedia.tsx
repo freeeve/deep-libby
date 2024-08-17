@@ -50,7 +50,8 @@ export default function SearchMedia() {
                      backgroundColor: index % 2 === 0 ? '#333' : '#444',
                      display: 'flex',
                      justifyContent: 'space-between',
-                     padding: 4
+                     padding: 4,
+                     cursor: 'pointer',
                  }}>
                 <div style={{textAlign: 'left'}}>
                     <div><strong>{result.title}</strong></div>
@@ -70,7 +71,12 @@ export default function SearchMedia() {
     return (
         <main>
             <div style={{width: '100%'}}>
-                <div style={{fontSize: 42}}>DeepLibby Search</div>
+                <div style={{fontSize: 42}}>
+                    DeepLibby Search
+                    <span style={{marginLeft: 200, cursor: 'pointer'}}>
+                        <span onClick={() => navigate('/about')}>About</span>
+                    </span>
+                </div>
                 <input type="text"
                        placeholder="Search for a book (min 3 characters)"
                        style={{width: '100%', height: 50, fontSize: 24}}

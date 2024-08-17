@@ -43,7 +43,8 @@ export default function Availability() {
             cellRenderer: (params: any) => {
                 if (selectedMedia !== null) {
                     return (
-                        <a href={`https://libbyapp.com/library/${params.value}/generated-36532/page-1/${selectedMedia.id}`}>
+                        <a href={`https://libbyapp.com/library/${params.value}/generated-36532/page-1/${selectedMedia.id}`}
+                           style={{cursor: 'pointer'}}>
                             open in this library
                         </a>
                     );
