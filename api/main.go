@@ -25,10 +25,7 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
-	go readLibraries()
-	go readAvailability()
 	// this is the slowest one, let it block the server start
-	readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
@@ -59,9 +56,15 @@ func main() {
 	rootServeMux.Handle("/ui/", uiServeMux)
 	rootServeMux.Handle("/api/", corsAPIMux)
 
-	port := "8080"
+	port := "443"
 	log.Info().Str("port", port).Msg("starting server")
-	err := http.ListenAndServe(fmt.Sprintf("localhost:%s", port), rootServeMux)
+
+	privKey := "/etc/letsencrypt/live/deeplibby.com/privkey.pem"
+	certFile := "/etc/letsencrypt/live/deeplibby.com/fullchain.pem"
+	err := http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%s", port), certFile, privKey, rootServeMux)
+	go readLibraries()
+	go readAvailability()
+	readMedia()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
