@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -121,6 +122,12 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if resp == nil {
 		log.Error().Msg("empty body")
 		log.Error().Msg(err.Error())
+		if strings.Contains(err.Error(), "NoSuchKey") {
+			resp, err = s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+				Bucket: aws.String("deep-libby"),
+				Key:    aws.String(uiPrefix + "/index.html"),
+			})
+		}
 	}
 	var buf *bytes.Buffer
 	buf = new(bytes.Buffer)
