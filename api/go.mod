@@ -3,6 +3,7 @@ module api
 go 1.22.1
 
 require (
+	github.com/NYTimes/gziphandler v1.1.1
 	github.com/RoaringBitmap/roaring v1.9.4
 	github.com/allegro/bigcache v1.2.1
 	github.com/aws/aws-sdk-go-v2 v1.30.3

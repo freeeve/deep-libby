@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"github.com/allegro/bigcache"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -33,14 +34,14 @@ func main() {
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
-	uiServeMux.HandleFunc("GET /", uiHandler)
+	uiServeMux.Handle("GET /", gziphandler.GzipHandler(http.HandlerFunc(uiHandler)))
 
 	apiServeMux := http.NewServeMux()
-	apiServeMux.HandleFunc("GET /api/search", searchHandler)
-	apiServeMux.HandleFunc("GET /api/libraries", librariesHandler)
-	apiServeMux.HandleFunc("GET /api/availability", availabilityHandler)
-	apiServeMux.HandleFunc("GET /api/diff", diffHandler)
-	apiServeMux.HandleFunc("GET /api/intersect", intersectHandler)
+	apiServeMux.Handle("GET /api/search", gziphandler.GzipHandler(http.HandlerFunc(searchHandler)))
+	apiServeMux.Handle("GET /api/libraries", gziphandler.GzipHandler(http.HandlerFunc(librariesHandler)))
+	apiServeMux.Handle("GET /api/availability", gziphandler.GzipHandler(http.HandlerFunc(availabilityHandler)))
+	apiServeMux.Handle("GET /api/diff", gziphandler.GzipHandler(http.HandlerFunc(diffHandler)))
+	apiServeMux.Handle("GET /api/intersect", gziphandler.GzipHandler(http.HandlerFunc(intersectHandler)))
 
 	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
