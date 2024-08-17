@@ -29,7 +29,7 @@ func main() {
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
-	uiServeMux.HandleFunc("GET /ui/", uiHandler)
+	uiServeMux.HandleFunc("GET /", uiHandler)
 
 	apiServeMux := http.NewServeMux()
 	apiServeMux.HandleFunc("GET /api/search", searchHandler)
@@ -53,25 +53,34 @@ func main() {
 		apiServeMux.ServeHTTP(w, r)
 	})
 
-	rootServeMux.Handle("/ui/", uiServeMux)
+	rootServeMux.Handle("/", uiServeMux)
 	rootServeMux.Handle("/api/", corsAPIMux)
 
-	port := "443"
-	log.Info().Str("port", port).Msg("starting server")
+	if os.Getenv("LOCAL_TESTING") == "true" {
+		port := "8080"
+		log.Info().Str("port", port).Msg("starting server")
+		err := http.ListenAndServe(fmt.Sprintf("localhost:%s", port), rootServeMux)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+	} else {
+		port := "443"
+		log.Info().Str("port", port).Msg("starting server")
+		privKey := "/etc/letsencrypt/live/deeplibby.com/privkey.pem"
+		certFile := "/etc/letsencrypt/live/deeplibby.com/fullchain.pem"
+		err := http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%s", port), certFile, privKey, rootServeMux)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+	}
 
-	privKey := "/etc/letsencrypt/live/deeplibby.com/privkey.pem"
-	certFile := "/etc/letsencrypt/live/deeplibby.com/fullchain.pem"
-	err := http.ListenAndServeTLS(fmt.Sprintf("0.0.0.0:%s", port), certFile, privKey, rootServeMux)
 	go readLibraries()
 	go readAvailability()
 	readMedia()
-	if err != nil {
-		log.Fatal().Err(err)
-	}
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {
-	uiPrefix := "ui/"
+	uiPrefix := "ui"
 	var err error
 	if uiCache == nil {
 		uiCache, err = bigcache.NewBigCache(bigcache.DefaultConfig(10 * time.Minute))
@@ -80,18 +89,24 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := r.URL.Path
-	cached, err := uiCache.Get(path)
-	if err == nil {
-		_, err = w.Write(cached)
-		if err != nil {
-			log.Error().Err(err)
-		} else {
-			// early return for cache hit
-			return
-		}
-	} else {
-		log.Debug().Msg("cache miss?")
+	if path == "/" {
+		path = "/index.html"
 	}
+	log.Info().Str("path", path).Msg("serving ui")
+	/*
+		cached, err := uiCache.Get(path)
+		if err == nil {
+			_, err = w.Write(cached)
+			if err != nil {
+				log.Error().Err(err)
+			} else {
+				// early return for cache hit
+				return
+			}
+		} else {
+			log.Debug().Msg("cache miss?")
+		}
+	*/
 	if s3Client == nil {
 		cfg, err := config.LoadDefaultConfig(context.TODO())
 		if err != nil {
@@ -99,15 +114,25 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		s3Client = s3.NewFromConfig(cfg)
 	}
+	key := uiPrefix + path
+	log.Info().Str("key", key).Msg("reading s3")
 	resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String("deep-libby"),
-		Key:    aws.String(uiPrefix + path),
+		Key:    aws.String(key),
 	})
+	if err != nil {
+		log.Error().Err(err)
+	}
+	if resp == nil {
+		log.Error().Msg("empty body")
+	}
 	var buf *bytes.Buffer
+	buf = new(bytes.Buffer)
 	_, err = io.Copy(buf, resp.Body)
 	if err != nil {
 		log.Error().Err(err)
 	}
+	w.Header().Set("Content-Type", *resp.ContentType)
 	_, err = io.Copy(w, buf)
 	if err != nil {
 		log.Error().Err(err)
