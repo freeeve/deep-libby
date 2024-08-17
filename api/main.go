@@ -141,9 +141,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getS3Client() {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("auto"),
-	)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	if err != nil {
 		log.Error().Err(err)
 	}
