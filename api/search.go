@@ -62,11 +62,35 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	lowerQuery := strings.ToLower(query)
 	ids := search.Search(query)
 	var results []Media
+	var lastIds []uint64
 	for _, id := range ids {
+		found := false
 		media := mediaMap[id]
 		if strings.Contains(strings.ToLower(media.Title), lowerQuery) {
 			results = append(results, mediaMap[id])
+			found = true
+		} else {
+			for _, creator := range media.Creators {
+				if strings.Contains(strings.ToLower(creator.Name), lowerQuery) {
+					results = append(results, mediaMap[id])
+					found = true
+					break
+				}
+			}
+			for _, language := range media.Languages {
+				if strings.Contains(strings.ToLower(language), lowerQuery) {
+					results = append(results, mediaMap[id])
+					found = true
+					break
+				}
+			}
 		}
+		if found == false {
+			lastIds = append(lastIds, id)
+		}
+	}
+	for _, id := range lastIds {
+		results = append(results, mediaMap[id])
 	}
 	result := map[string][]Media{}
 	result["results"] = results

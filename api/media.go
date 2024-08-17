@@ -91,6 +91,9 @@ func readMedia() {
 		for _, creator := range creators {
 			search.Index(creator.Name, mediaId)
 		}
+		for _, language := range languages {
+			search.Index(language, mediaId)
+		}
 		search.Index(media.Title, mediaId)
 	}
 	log.Info().Msg("done reading media")

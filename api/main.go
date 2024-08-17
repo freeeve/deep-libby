@@ -20,13 +20,15 @@ var uiCache *bigcache.BigCache
 var s3Client *s3.Client
 
 func main() {
+	if os.Getenv("LOCAL_TESTING") == "true" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
+	}
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
 	go readLibraries()
-	go readMedia()
-	readAvailability()
-	if os.Getenv("LOCAL_TESTING") == "true" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	}
+	go readAvailability()
+	// this is the slowest one, let it block the server start
+	readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()

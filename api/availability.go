@@ -27,6 +27,7 @@ type LibraryMediaCounts struct {
 }
 
 type AvailabilityResponse struct {
+	Media
 	Availability []LibraryMediaCounts `json:"availability"`
 }
 
@@ -142,12 +143,16 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 			log.Error().Msgf("library not found for website id %d", websiteId)
 			continue
 		}
+		if library.Id == "uskindle" {
+			continue
+		}
 		results = append(results, LibraryMediaCounts{
 			Library:     library,
 			MediaCounts: counts,
 		})
 	}
 	availability := AvailabilityResponse{
+		Media:        mediaMap[id],
 		Availability: results,
 	}
 	w.Header().Add("Content-Type", "application/json")
