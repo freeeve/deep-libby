@@ -106,21 +106,21 @@ func readAvailability() {
 		if _, exists := availabilityMap[id]; !exists {
 			availabilityMap[id] = map[int]MediaCounts{}
 		}
-		availabilityMap[id][websiteId] = MediaCounts{
+		estimatedWaitDays = estimatedWaitDays
+		if availableCount > 0 {
+			estimatedWaitDays = 0
+		}
+		mediaCounts := MediaCounts{
 			OwnedCount:        uint32(ownedCount),
 			AvailableCount:    uint32(availableCount),
 			HoldsCount:        uint32(holdsCount),
 			EstimatedWaitDays: int32(estimatedWaitDays),
 		}
+		availabilityMap[id][websiteId] = mediaCounts
 		if _, exists := libraryMediaMap[websiteId]; !exists {
 			libraryMediaMap[websiteId] = map[uint64]MediaCounts{}
 		}
-		libraryMediaMap[websiteId][id] = MediaCounts{
-			OwnedCount:        uint32(ownedCount),
-			AvailableCount:    uint32(availableCount),
-			HoldsCount:        uint32(holdsCount),
-			EstimatedWaitDays: int32(estimatedWaitDays),
-		}
+		libraryMediaMap[websiteId][id] = mediaCounts
 	}
 	log.Info().Msg("done reading availability")
 }
