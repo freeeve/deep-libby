@@ -107,7 +107,7 @@ func readAvailability() {
 			availabilityMap[id] = map[int]MediaCounts{}
 		}
 		estimatedWaitDays = estimatedWaitDays
-		if availableCount > 0 {
+		if availableCount > holdsCount {
 			estimatedWaitDays = 0
 		}
 		mediaCounts := MediaCounts{
