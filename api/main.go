@@ -108,11 +108,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	*/
 	if s3Client == nil {
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			log.Error().Err(err)
-		}
-		s3Client = s3.NewFromConfig(cfg)
+		getS3Client()
 	}
 	key := uiPrefix + path
 	log.Info().Str("key", key).Msg("reading s3")
@@ -125,6 +121,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if resp == nil {
 		log.Error().Msg("empty body")
+		log.Error().Msg(err.Error())
 	}
 	var buf *bytes.Buffer
 	buf = new(bytes.Buffer)
@@ -141,4 +138,14 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Err(err)
 	}
+}
+
+func getS3Client() {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("auto"),
+	)
+	if err != nil {
+		log.Error().Err(err)
+	}
+	s3Client = s3.NewFromConfig(cfg)
 }

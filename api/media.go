@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rs/zerolog/log"
 	"io"
@@ -39,11 +38,7 @@ func readMedia() {
 	mediaMap = make(map[uint64]Media)
 	s3Path := "media.csv.gz"
 	if s3Client == nil {
-		cfg, err := config.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			log.Error().Err(err)
-		}
-		s3Client = s3.NewFromConfig(cfg)
+		getS3Client()
 	}
 	resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String("deep-libby"),
