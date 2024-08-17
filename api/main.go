@@ -25,7 +25,10 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
+	go readLibraries()
+	go readAvailability()
 	// this is the slowest one, let it block the server start
+	readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
@@ -73,10 +76,6 @@ func main() {
 			log.Fatal().Err(err)
 		}
 	}
-
-	go readLibraries()
-	go readAvailability()
-	readMedia()
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {
