@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
 	"github.com/NYTimes/gziphandler"
 	"github.com/allegro/bigcache"
@@ -18,6 +19,11 @@ import (
 	"time"
 )
 
+type UiStatic struct {
+	Body        []byte
+	ContentType string
+}
+
 var uiCache *bigcache.BigCache
 var s3Client *s3.Client
 
@@ -30,7 +36,7 @@ func main() {
 	go readLibraries()
 	go readAvailability()
 	// this is the slowest one, let it block the server start
-	readMedia()
+	go readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
@@ -84,7 +90,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	uiPrefix := "ui"
 	var err error
 	if uiCache == nil {
-		uiCache, err = bigcache.NewBigCache(bigcache.DefaultConfig(10 * time.Minute))
+		uiCache, err = bigcache.NewBigCache(bigcache.DefaultConfig(30 * time.Minute))
 		if err != nil {
 			log.Error().Err(err)
 		}
@@ -94,20 +100,9 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		path = "/index.html"
 	}
 	log.Info().Str("path", path).Msg("serving ui")
-	/*
-		cached, err := uiCache.Get(path)
-		if err == nil {
-			_, err = w.Write(cached)
-			if err != nil {
-				log.Error().Err(err)
-			} else {
-				// early return for cache hit
-				return
-			}
-		} else {
-			log.Debug().Msg("cache miss?")
-		}
-	*/
+	if getFromUICache(w, err, path) {
+		return
+	}
 	if s3Client == nil {
 		getS3Client()
 	}
@@ -136,15 +131,52 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	w.Header().Set("Content-Type", *resp.ContentType)
+	contentType := *resp.ContentType
+	log.Info().Int("bodyLength", len(buf.Bytes())).Msg("uiHandler before write to response")
+	w.Header().Set("Content-Type", contentType)
+	addToUICache(err, contentType, buf, path)
 	_, err = io.Copy(w, buf)
 	if err != nil {
 		log.Error().Err(err)
 	}
-	err = uiCache.Set(path, buf.Bytes())
+}
+
+func addToUICache(err error, contentType string, responseBody *bytes.Buffer, path string) {
+	var cacheBuffer *bytes.Buffer
+	cacheBuffer = new(bytes.Buffer)
+	err = gob.NewEncoder(cacheBuffer).Encode(UiStatic{ContentType: contentType, Body: responseBody.Bytes()})
 	if err != nil {
 		log.Error().Err(err)
 	}
+	err = uiCache.Set(path, cacheBuffer.Bytes())
+	if err != nil {
+		log.Error().Err(err)
+	}
+}
+
+func getFromUICache(w http.ResponseWriter, err error, path string) bool {
+	cached, err := uiCache.Get(path)
+	if err == nil {
+		var cachedStatic UiStatic
+		err := gob.NewDecoder(bytes.NewReader(cached)).Decode(&cachedStatic)
+		if err != nil {
+			log.Error().Err(err)
+		} else {
+			w.Header().Set("Content-Type", cachedStatic.ContentType)
+			log.Info().Int("bodyLength", len(cachedStatic.Body)).Msg("getFromUICache before write to response")
+			_, err = w.Write(cachedStatic.Body)
+			if err != nil {
+				log.Error().Err(err)
+			} else {
+				// early return for cache hit
+				log.Info().Msg("returning early, cache hit")
+				return true
+			}
+		}
+	} else {
+		log.Debug().Msg("cache miss?")
+	}
+	return false
 }
 
 func getS3Client() {

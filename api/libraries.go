@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -28,21 +29,33 @@ var libraryMap map[int]Library
 
 func readLibraries() {
 	libraryMap = make(map[int]Library)
-	s3Path := "libraries.csv.gz"
-	if s3Client == nil {
-		getS3Client()
-	}
-	resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String("deep-libby"),
-		Key:    aws.String(s3Path),
-	})
-	if err != nil {
-		log.Error().Err(err)
-	}
-	defer resp.Body.Close()
-	gzr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		log.Error().Err(err)
+	var gzr *gzip.Reader
+	if os.Getenv("LOCAL_TESTING") == "true" {
+		f, err := os.Open("../../librarylibrary/libraries.csv.gz")
+		if err != nil {
+			log.Error().Err(err)
+		}
+		gzr, err = gzip.NewReader(f)
+		if err != nil {
+			log.Error().Err(err)
+		}
+	} else {
+		s3Path := "libraries.csv.gz"
+		if s3Client == nil {
+			getS3Client()
+		}
+		resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+			Bucket: aws.String("deep-libby"),
+			Key:    aws.String(s3Path),
+		})
+		if err != nil {
+			log.Error().Err(err)
+		}
+		defer resp.Body.Close()
+		gzr, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			log.Error().Err(err)
+		}
 	}
 	cr := csv.NewReader(gzr)
 	for {

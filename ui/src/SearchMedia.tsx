@@ -1,5 +1,5 @@
 import {Virtuoso} from "react-virtuoso";
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 
 interface SearchMedia {
@@ -12,38 +12,67 @@ interface SearchMedia {
 }
 
 export default function SearchMedia() {
-    // const baseUrl = 'http://localhost:8080/';
+    //const baseUrl = 'http://localhost:8080/';
     const baseUrl = window.location.origin;
+    const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object
+    const abortControllerRef = useRef(new AbortController());
+    const [searching, setSearching] = useState(false);
 
-    const loadSearchResults = (inputValue: string) => {
+    const search = (term, signal) => {
         let url = new URL('/api/search', baseUrl);
-        let params: any = {q: inputValue};
+        let params: any = {q: term};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-        fetch(url, {
+        return fetch(url, {
             method: 'GET',
+            signal: signal,
         })
             .then(response => response.json())
-            .then(data => setData(data))
             .catch((error) => {
                 console.error('Error:', error);
             });
-    }
+    };
 
-    const handleInputChange = (event: any) => {
-        const value = event.target.value;
-        if (value.length >= 3) {
-            loadSearchResults(value);
-        } else {
-            setData({results: []});
+    const handleInputChange = (event) => {
+        console.log("handleInputChange " + event.target.value);
+        setSearchTerm(event.target.value);
+        // Abort any pending requests
+        if (abortControllerRef.current) {
+            console.log("aborting from handleInputChange");
+            abortControllerRef.current.abort();
         }
+        let term = event.target.value;
+        if (term.length < 3) {
+            setData({results: []});
+            return
+        }
+
+        // Create new abort controller
+        const newAbortController = new AbortController();
+
+        abortControllerRef.current = newAbortController;
+        // Call onSearch with new search term and abort controller
+
+        setSearching(true);
+        search(term, newAbortController.signal)
+            .then((data) => {
+                setSearching(false);
+                if (data) {
+                    setData(data);
+                }
+            })
+            .catch((error) => {
+                if (error.name !== 'AbortError') {
+                    console.error(error);
+                    setSearching(false);
+                }
+            });
     };
 
     const Row = (index: number) => {
         const result: SearchMedia = data.results[index];
-        console.log(index);
         return (
             <div onClick={() => navigate('/availability/' + result.id)}
                  style={{
@@ -78,10 +107,12 @@ export default function SearchMedia() {
                     </span>
                 </div>
                 <input type="text"
+                       value={searchTerm}
                        placeholder="Search for a book (min 3 characters)"
                        style={{width: '100%', height: 50, fontSize: 24}}
                        onChange={handleInputChange}
                 />
+                {searching && <div>Searching...</div>}
                 {data.results && data.results.length > 0 && (
                     <Virtuoso
                         style={{height: 650, width: '100%'}}
