@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/gob"
 	"fmt"
@@ -40,7 +41,8 @@ func main() {
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
-	uiServeMux.Handle("GET /", gziphandler.GzipHandler(http.HandlerFunc(uiHandler)))
+	// uiServeMux.Handle("GET /", gziphandler.GzipHandler(http.HandlerFunc(uiHandler)))
+	uiServeMux.Handle("GET /", http.HandlerFunc(uiHandler))
 
 	apiServeMux := http.NewServeMux()
 	apiServeMux.Handle("GET /api/search", gziphandler.GzipHandler(http.HandlerFunc(searchHandler)))
@@ -96,11 +98,17 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := r.URL.Path
+	acceptEncoding := r.Header.Get("Accept-Encoding")
+	if strings.Contains(acceptEncoding, "gzip") {
+		acceptEncoding = "gzip"
+	} else {
+		acceptEncoding = "none"
+	}
 	if path == "/" {
 		path = "/index.html"
 	}
 	log.Info().Str("path", path).Msg("serving ui")
-	if getFromUICache(w, err, path) {
+	if getFromUICache(w, path, acceptEncoding) {
 		return
 	}
 	if s3Client == nil {
@@ -132,37 +140,60 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err)
 	}
 	contentType := *resp.ContentType
-	log.Info().Int("bodyLength", len(buf.Bytes())).Msg("uiHandler before write to response")
-	w.Header().Set("Content-Type", contentType)
-	addToUICache(err, contentType, buf, path)
-	_, err = io.Copy(w, buf)
-	if err != nil {
-		log.Error().Err(err)
-	}
+	addToUICache(contentType, buf, path)
+	getFromUICache(w, path, acceptEncoding)
 }
 
-func addToUICache(err error, contentType string, responseBody *bytes.Buffer, path string) {
+func addToUICache(contentType string, responseBody *bytes.Buffer, path string) {
 	var cacheBuffer *bytes.Buffer
 	cacheBuffer = new(bytes.Buffer)
-	err = gob.NewEncoder(cacheBuffer).Encode(UiStatic{ContentType: contentType, Body: responseBody.Bytes()})
+	bytesBuf := responseBody.Bytes()
+	var gzipBuffer *bytes.Buffer
+	gzipBuffer = new(bytes.Buffer)
+	gzw := gzip.NewWriter(gzipBuffer)
+	_, err := gzw.Write(bytesBuf)
+	if err != nil {
+		return
+	}
+	err = gzw.Flush()
 	if err != nil {
 		log.Error().Err(err)
 	}
-	err = uiCache.Set(path, cacheBuffer.Bytes())
+	err = gob.NewEncoder(cacheBuffer).Encode(UiStatic{ContentType: contentType, Body: bytesBuf})
+	if err != nil {
+		log.Error().Err(err)
+	}
+	err = uiCache.Set(path+"~none", cacheBuffer.Bytes())
+	if err != nil {
+		log.Error().Err(err)
+	}
+	cacheBuffer.Reset()
+	err = gob.NewEncoder(cacheBuffer).Encode(UiStatic{ContentType: contentType, Body: gzipBuffer.Bytes()})
+	if err != nil {
+		log.Error().Err(err)
+	}
+	err = uiCache.Set(path+"~gzip", cacheBuffer.Bytes())
 	if err != nil {
 		log.Error().Err(err)
 	}
 }
 
-func getFromUICache(w http.ResponseWriter, err error, path string) bool {
-	cached, err := uiCache.Get(path)
+func getFromUICache(w http.ResponseWriter, path, acceptEncoding string) bool {
+	start := time.Now()
+	cached, err := uiCache.Get(path + "~" + acceptEncoding)
 	if err == nil {
 		var cachedStatic UiStatic
 		err := gob.NewDecoder(bytes.NewReader(cached)).Decode(&cachedStatic)
 		if err != nil {
 			log.Error().Err(err)
 		} else {
+			w.Header().Set("Cache-Control", "public, max-age=300")
 			w.Header().Set("Content-Type", cachedStatic.ContentType)
+			if acceptEncoding == "gzip" {
+				w.Header().Set("Content-Encoding", "gzip")
+			} else {
+				w.Header().Set("Content-Encoding", "none")
+			}
 			log.Info().Int("bodyLength", len(cachedStatic.Body)).Msg("getFromUICache before write to response")
 			_, err = w.Write(cachedStatic.Body)
 			if err != nil {
@@ -170,6 +201,7 @@ func getFromUICache(w http.ResponseWriter, err error, path string) bool {
 			} else {
 				// early return for cache hit
 				log.Info().Msg("returning early, cache hit")
+				log.Info().Str("path", path).Dur("duration(ms)", time.Duration(time.Since(start).Milliseconds())).Msg("getFromUICache")
 				return true
 			}
 		}
