@@ -1,5 +1,5 @@
 import {Virtuoso} from "react-virtuoso";
-import {useEffect, useRef, useState} from "react";
+import React, {useRef, useState} from "react";
 import {useNavigate} from "react-router-dom";
 
 interface SearchMedia {
@@ -20,7 +20,7 @@ export default function SearchMedia() {
     const abortControllerRef = useRef(new AbortController());
     const [searching, setSearching] = useState(false);
 
-    const search = (term, signal) => {
+    const search = (term: string, signal: AbortSignal) => {
         let url = new URL('/api/search', baseUrl);
         let params: any = {q: term};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
@@ -35,7 +35,7 @@ export default function SearchMedia() {
             });
     };
 
-    const handleInputChange = (event) => {
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.log("handleInputChange " + event.target.value);
         setSearchTerm(event.target.value);
         // Abort any pending requests
