@@ -5,6 +5,7 @@ import SearchMedia from "./SearchMedia.tsx";
 import About from "./About.tsx";
 import Diff from "./Diff.tsx";
 import Intersect from "./Intersect.tsx";
+import Unique from "./Unique.tsx";
 
 function App() {
     return (
@@ -16,6 +17,8 @@ function App() {
                 <Route path="/diff/:leftLibraryId/:rightLibraryId" element={<Diff/>}/>
                 <Route path="/intersect" element={<Intersect/>}/>
                 <Route path="/intersect/:leftLibraryId/:rightLibraryId" element={<Intersect/>}/>
+                <Route path="/unique" element={<Unique/>}/>
+                <Route path="/unique/:libraryId" element={<Unique/>}/>
                 <Route path="/about" element={<About/>}/>
             </Routes>
         </BrowserRouter>

@@ -40,6 +40,16 @@ type DiffMediaCounts struct {
 	LibraryMediaCounts
 }
 
+type UniqueResponse struct {
+	Library Library             `json:"library"`
+	Unique  []UniqueMediaCounts `json:"unique"`
+}
+
+type UniqueMediaCounts struct {
+	Media
+	MediaCounts
+}
+
 type IntersectResponse struct {
 	Intersect []IntersectMediaCounts `json:"intersect"`
 }
@@ -245,6 +255,38 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	diffResponse := IntersectResponse{
 		Intersect: intersect,
+	}
+	w.Header().Add("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(diffResponse)
+	if err != nil {
+		log.Error().Err(err)
+	}
+}
+
+func uniqueHandler(w http.ResponseWriter, r *http.Request) {
+	websiteId, err := strconv.Atoi(r.URL.Query().Get("websiteId"))
+	if err != nil {
+		http.Error(w, "invalid website id", http.StatusBadRequest)
+		return
+	}
+	library, libraryExists := libraryMap[websiteId]
+	if !libraryExists {
+		http.Error(w, "invalid website id", http.StatusBadRequest)
+		return
+	}
+	media := libraryMediaMap[library.WebsiteId]
+	var unique []UniqueMediaCounts
+	for id, count := range media {
+		if len(availabilityMap[id]) == 1 {
+			unique = append(unique, UniqueMediaCounts{
+				Media:       mediaMap[id],
+				MediaCounts: count,
+			})
+		}
+	}
+	diffResponse := UniqueResponse{
+		Library: library,
+		Unique:  unique,
 	}
 	w.Header().Add("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(diffResponse)

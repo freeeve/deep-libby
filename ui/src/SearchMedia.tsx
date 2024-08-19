@@ -96,13 +96,16 @@ export default function SearchMedia() {
     return (
         <main>
             <div style={{width: '100%'}}>
-                <div style={{fontSize: 42}}>
+                <div style={{fontSize: 36}}>
                     DeepLibby Search
-                    <span style={{marginLeft: 200, cursor: 'pointer'}}>
+                    <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/diff/')}>Library Diff</span>
                     </span>
                     <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/intersect/')}>Library Intersect</span>
+                    </span>
+                    <span style={{marginLeft: 50, cursor: 'pointer'}}>
+                        <span onClick={() => navigate('/unique/')}>Library Unique</span>
                     </span>
                     <span style={{marginLeft: 100, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/about')}>About</span>

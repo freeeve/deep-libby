@@ -50,6 +50,7 @@ func main() {
 	apiServeMux.Handle("GET /api/availability", gziphandler.GzipHandler(http.HandlerFunc(availabilityHandler)))
 	apiServeMux.Handle("GET /api/diff", gziphandler.GzipHandler(http.HandlerFunc(diffHandler)))
 	apiServeMux.Handle("GET /api/intersect", gziphandler.GzipHandler(http.HandlerFunc(intersectHandler)))
+	apiServeMux.Handle("GET /api/unique", gziphandler.GzipHandler(http.HandlerFunc(uniqueHandler)))
 
 	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
