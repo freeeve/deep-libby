@@ -81,6 +81,7 @@ func readLibraries() {
 }
 
 func librariesHandler(w http.ResponseWriter, r *http.Request) {
+	log.Info().Msg("/api/libraries")
 	if libraryMap == nil {
 		readLibraries()
 	}

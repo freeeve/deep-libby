@@ -108,7 +108,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if path == "/" {
 		path = "/index.html"
 	}
-	log.Info().Str("path", path).Msg("serving ui")
+	log.Trace().Str("path", path).Msg("serving ui")
 	if getFromUICache(w, path, acceptEncoding) {
 		return
 	}
@@ -116,7 +116,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		getS3Client()
 	}
 	key := uiPrefix + path
-	log.Info().Str("key", key).Msg("reading s3")
+	log.Trace().Str("key", key).Msg("reading s3")
 	resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String("deep-libby"),
 		Key:    aws.String(key),
@@ -125,8 +125,8 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err)
 	}
 	if resp == nil {
-		log.Error().Msg("empty body")
-		log.Error().Msg(err.Error())
+		log.Trace().Msg("empty body")
+		log.Trace().Msg(err.Error())
 		if strings.Contains(err.Error(), "NoSuchKey") {
 			resp, err = s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
 				Bucket: aws.String("deep-libby"),
@@ -195,14 +195,14 @@ func getFromUICache(w http.ResponseWriter, path, acceptEncoding string) bool {
 			} else {
 				w.Header().Set("Content-Encoding", "none")
 			}
-			log.Info().Int("bodyLength", len(cachedStatic.Body)).Msg("getFromUICache before write to response")
+			log.Trace().Int("bodyLength", len(cachedStatic.Body)).Msg("getFromUICache before write to response")
 			_, err = w.Write(cachedStatic.Body)
 			if err != nil {
 				log.Error().Err(err)
 			} else {
 				// early return for cache hit
-				log.Info().Msg("returning early, cache hit")
-				log.Info().Str("path", path).Dur("duration(ms)", time.Duration(time.Since(start).Milliseconds())).Msg("getFromUICache")
+				log.Trace().Msg("returning early, cache hit")
+				log.Trace().Str("path", path).Dur("duration(ms)", time.Duration(time.Since(start).Milliseconds())).Msg("getFromUICache")
 				return true
 			}
 		}

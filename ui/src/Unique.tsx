@@ -138,7 +138,7 @@ export default function Unique() {
         selectLibraries(selectedOption.id);
     }
 
-    if (libraryIdInt != -1 && uniqueResponse.unique.length === 0) {
+    if (libraryIdInt != -1 && uniqueResponse.library.id === '') {
         selectLibraries(libraryIdInt);
     }
 

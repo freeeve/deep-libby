@@ -60,6 +60,7 @@ func getTrigrams(s string) []string {
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	lowerQuery := strings.ToLower(query)
+	log.Info().Msgf("/api/search q: %v", query)
 	ids := search.Search(query)
 	var results []Media
 	var lastIds []uint64

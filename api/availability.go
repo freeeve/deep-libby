@@ -155,6 +155,7 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
+	log.Info().Msgf("/api/availability media: %v", mediaMap[id])
 	results := []LibraryMediaCounts{}
 	for websiteId, counts := range availabilityMap[id] {
 		library, exists := libraryMap[websiteId]
@@ -198,6 +199,7 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid website id", http.StatusBadRequest)
 		return
 	}
+	log.Info().Msgf("/api/intersect left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
 	leftCounts := libraryMediaMap[leftLibrary.WebsiteId]
 	rightCounts := libraryMediaMap[rightLibrary.WebsiteId]
 	diff := []DiffMediaCounts{}
@@ -212,6 +214,9 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 				},
 			})
 		}
+	}
+	if len(diff) == 0 {
+		diff = []DiffMediaCounts{}
 	}
 	diffResponse := DiffResponse{
 		Diff: diff,
@@ -240,6 +245,7 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid website id", http.StatusBadRequest)
 		return
 	}
+	log.Info().Msgf("/api/intersect left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
 	leftMedia := libraryMediaMap[leftLibrary.WebsiteId]
 	rightMedia := libraryMediaMap[rightLibrary.WebsiteId]
 	var intersect []IntersectMediaCounts
@@ -252,6 +258,9 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 				RightLibraryMediaCounts: LibraryMediaCounts{rightLibrary, rightCount},
 			})
 		}
+	}
+	if len(intersect) == 0 {
+		intersect = []IntersectMediaCounts{}
 	}
 	diffResponse := IntersectResponse{
 		Intersect: intersect,
@@ -274,6 +283,7 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid website id", http.StatusBadRequest)
 		return
 	}
+	log.Info().Msgf("/api/unique libraryId %s", library.Id)
 	media := libraryMediaMap[library.WebsiteId]
 	var unique []UniqueMediaCounts
 	for id, count := range media {
@@ -283,6 +293,9 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 				MediaCounts: count,
 			})
 		}
+	}
+	if len(unique) == 0 {
+		unique = []UniqueMediaCounts{}
 	}
 	diffResponse := UniqueResponse{
 		Library: library,
