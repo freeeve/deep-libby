@@ -18,7 +18,6 @@ export default function SearchMedia() {
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object
     const abortControllerRef = useRef(new AbortController());
-    const [searching, setSearching] = useState(false);
 
     const search = (term: string, signal: AbortSignal) => {
         let url = new URL('/api/search', baseUrl);
@@ -55,10 +54,8 @@ export default function SearchMedia() {
         abortControllerRef.current = newAbortController;
         // Call onSearch with new search term and abort controller
 
-        setSearching(true);
         search(term, newAbortController.signal)
             .then((data) => {
-                setSearching(false);
                 if (data) {
                     setData(data);
                 }
@@ -66,7 +63,6 @@ export default function SearchMedia() {
             .catch((error) => {
                 if (error.name !== 'AbortError') {
                     console.error(error);
-                    setSearching(false);
                 }
             });
     };
@@ -118,7 +114,6 @@ export default function SearchMedia() {
                        style={{width: '100%', height: 50, fontSize: 24}}
                        onChange={handleInputChange}
                 />
-                {searching && <div style={{display: 'hidden'}}>Searching...</div>}
                 {data.results && data.results.length > 0 && (
                     <Virtuoso
                         style={{height: 650, width: '100%'}}

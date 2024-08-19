@@ -99,6 +99,7 @@ export default function Availability() {
                                 <div><strong>Description:</strong></div>
                                 <div dangerouslySetInnerHTML={{__html: selectedMedia.description}}></div>
                             </div>
+                            <div><a href={'https://www.overdrive.com/media/' + selectedMedia.id}>open in overdrive</a></div>
                         </div>
                     </div>
                     <img src={selectedMedia.coverUrl}
