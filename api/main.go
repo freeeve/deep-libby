@@ -37,7 +37,7 @@ func main() {
 	go readLibraries()
 	go readAvailability()
 	// this is the slowest one, let it block the server start
-	go readMedia()
+	readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()

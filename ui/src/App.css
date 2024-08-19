@@ -9,3 +9,36 @@
     margin-top: 3px;
     margin-bottom: 3px;
 }
+
+.react-select-container .react-select__control {
+    background-color: #242424;
+    border-color: #fff;
+    transition: none;
+    width: 40%;
+}
+
+.react-select-container &:hover {
+    border-color: #fff;
+}
+
+.react-select-container .react-select__menu {
+    background-color: #242424;
+    border: 1px solid #fff;
+}
+
+.react-select-container .react-select__option {
+    background-color: #242424;
+}
+
+.react-select-container &:hover {
+    background-color: #fff;
+}
+
+
+.react-select-container .react-select__indicator-separator {
+    background-color: #242424;
+}
+
+.react-select-container .react-select__placeholder, .react-select__single-value, .react-select__input {
+    color: #fff !important;
+}
