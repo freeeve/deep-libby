@@ -49,8 +49,8 @@ interface LibraryOption {
 }
 
 export default function Intersect() {
-    const baseUrl = 'http://localhost:8080/';
-    //const baseUrl = window.location.origin;
+    // const baseUrl = 'http://localhost:8080/';
+    const baseUrl = window.location.origin;
     const navigate = useNavigate();
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const {leftLibraryId, rightLibraryId} = useParams();

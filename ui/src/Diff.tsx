@@ -43,8 +43,8 @@ interface LibraryOption {
 }
 
 export default function Diff() {
-    const baseUrl = 'http://localhost:8080/';
-    //const baseUrl = window.location.origin;
+    // const baseUrl = 'http://localhost:8080/';
+    const baseUrl = window.location.origin;
     const navigate = useNavigate();
     const {leftLibraryId, rightLibraryId} = useParams();
     const leftLibraryIdInt = parseInt(leftLibraryId || '-1');
