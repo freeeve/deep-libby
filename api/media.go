@@ -97,13 +97,15 @@ func readMedia() {
 		}
 		allMedia = append(allMedia, media)
 		mediaMap[mediaId] = media
+		var builder strings.Builder
 		for _, creator := range creators {
-			search.Index(creator.Name, mediaId)
+			builder.WriteString(creator.Name)
 		}
 		for _, language := range languages {
-			search.Index(language, mediaId)
+			builder.WriteString(language)
 		}
-		search.Index(media.Title, mediaId)
+		builder.WriteString(media.Title)
+		search.Index(builder.String(), mediaId)
 	}
 	log.Info().Msg("done reading media")
 }

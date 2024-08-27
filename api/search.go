@@ -36,6 +36,9 @@ func (s *SearchIndex) Search(query string) []uint64 {
 	trigrams := getTrigrams(query)
 	var results *roaring64.Bitmap
 	for _, trigram := range trigrams {
+		if strings.Contains(trigram, " ") {
+			continue
+		}
 		if _, exists := s.trigramMap[trigram]; !exists {
 			return nil
 		}
