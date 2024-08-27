@@ -94,8 +94,14 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		if found == false {
 			lastIds = append(lastIds, id)
 		}
+		if len(results) >= 1000 {
+			break
+		}
 	}
 	for _, id := range lastIds {
+		if len(results) >= 1000 {
+			break
+		}
 		results = append(results, mediaMap[id])
 	}
 	result := map[string][]Media{}

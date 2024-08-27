@@ -104,6 +104,9 @@ func readMedia() {
 		for _, language := range languages {
 			builder.WriteString(language)
 		}
+		for _, format := range formats {
+			builder.WriteString(format)
+		}
 		builder.WriteString(media.Title)
 		search.Index(builder.String(), mediaId)
 	}
