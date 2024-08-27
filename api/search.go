@@ -21,6 +21,7 @@ func NewSearchIndex() *SearchIndex {
 }
 
 func (s *SearchIndex) Index(name string, id uint64) {
+	name = strings.TrimSpace(name)
 	trigrams := getTrigrams(name)
 	for _, trigram := range trigrams {
 		if _, exists := s.trigramMap[trigram]; !exists {
@@ -31,6 +32,7 @@ func (s *SearchIndex) Index(name string, id uint64) {
 }
 
 func (s *SearchIndex) Search(query string) []uint64 {
+	query = strings.TrimSpace(query)
 	trigrams := getTrigrams(query)
 	var results *roaring64.Bitmap
 	for _, trigram := range trigrams {

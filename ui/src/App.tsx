@@ -6,6 +6,7 @@ import About from "./About.tsx";
 import Diff from "./Diff.tsx";
 import Intersect from "./Intersect.tsx";
 import Unique from "./Unique.tsx";
+import Libraries from "./Libraries.tsx";
 
 function App() {
     return (
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/unique" element={<Unique/>}/>
                 <Route path="/unique/:libraryId" element={<Unique/>}/>
                 <Route path="/about" element={<About/>}/>
+                <Route path="/libraries" element={<Libraries/>}/>
             </Routes>
         </BrowserRouter>
     )

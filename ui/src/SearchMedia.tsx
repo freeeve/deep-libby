@@ -12,8 +12,8 @@ interface SearchMedia {
 }
 
 export default function SearchMedia() {
-    //const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    const baseUrl = 'http://localhost:8080/';
+    //const baseUrl = window.location.origin;
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object
@@ -96,7 +96,7 @@ export default function SearchMedia() {
     return (
         <main>
             <div style={{width: '100%'}}>
-                <div style={{fontSize: 36}}>
+                <div style={{fontSize: 24, textDecoration: 'underline'}}>
                     DeepLibby Search
                     <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/diff/')}>Library Diff</span>
@@ -106,6 +106,9 @@ export default function SearchMedia() {
                     </span>
                     <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/unique/')}>Library Unique</span>
+                    </span>
+                    <span style={{marginLeft: 50, cursor: 'pointer'}}>
+                        <span onClick={() => navigate('/libraries')}>Favorite Libraries</span>
                     </span>
                     <span style={{marginLeft: 100, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/about')}>About</span>

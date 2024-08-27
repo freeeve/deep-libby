@@ -32,6 +32,7 @@ func main() {
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
 	}
+	log.Logger = log.Level(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
 	go readLibraries()

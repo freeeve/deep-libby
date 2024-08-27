@@ -16,7 +16,7 @@ interface SelectedMedia {
     description: string;
     coverUrl: string;
     availability: {
-        library: { id: string, name: string },
+        library: { id: string, name: string, websiteId: number },
         ownedCount: number,
         availableCount: number,
         holdsCount: number,
@@ -25,14 +25,33 @@ interface SelectedMedia {
 }
 
 export default function Availability() {
-    //const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    const baseUrl = 'http://localhost:8080/';
+    //const baseUrl = window.location.origin;
     const {mediaId} = useParams();
     console.log(mediaId);
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
     console.log("mediaId", mediaId);
+    const [favorites, setFavorites] = useState<number[]>([]);
+
+    function memoFavorites() {
+        if (favorites.length !== 0) {
+            return favorites;
+        }
+        let favs: string = localStorage.getItem('favorites') || '[]';
+        if (favs === '[]') {
+            setFavorites([]);
+            return [];
+        } else {
+            setFavorites(JSON.parse(favs));
+            return JSON.parse(favs);
+        }
+    }
+
     const columnDefs: ColDef[] = [
-        {headerName: 'Library Name', field: 'library.name', minWidth: 500},
+        {headerName: 'Library Name', field: 'library.name', minWidth: 400},
+        {
+            headerName: 'Fav.', field: 'library.favorite', sort: 'desc', width: 130,
+        },
         {headerName: 'Owned', field: 'ownedCount', width: 110},
         {headerName: 'Available', field: 'availableCount', sort: 'desc', width: 140},
         {headerName: 'Holds', field: 'holdsCount', width: 110},
@@ -66,6 +85,9 @@ export default function Availability() {
             .then((response) => response.json())
             .then((data) => {
                 // Update the state with the selected book's details and availability data
+                data.availability.forEach((item: any) => {
+                    item.library.favorite = memoFavorites().includes(item.library.websiteId);
+                });
                 setSelectedMedia(data);
             })
             .catch((error) => {
