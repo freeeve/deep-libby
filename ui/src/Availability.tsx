@@ -25,8 +25,8 @@ interface SelectedMedia {
 }
 
 export default function Availability() {
-    const baseUrl = 'http://localhost:8080/';
-    //const baseUrl = window.location.origin;
+    //const baseUrl = 'http://localhost:8080/';
+    const baseUrl = window.location.origin;
     const {mediaId} = useParams();
     console.log(mediaId);
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
@@ -55,7 +55,7 @@ export default function Availability() {
         {headerName: 'Owned', field: 'ownedCount', width: 110},
         {headerName: 'Available', field: 'availableCount', sort: 'desc', width: 140},
         {headerName: 'Holds', field: 'holdsCount', width: 110},
-        {headerName: 'Estimated Wait Days', field: 'estimatedWaitDays', width: 190},
+        {headerName: 'Estimated Wait Days', field: 'estimatedWaitDays', sort: 'asc', width: 190},
         {
             headerName: 'Open In Libby',
             field: 'library.id',

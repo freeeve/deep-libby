@@ -12,8 +12,8 @@ interface SearchMedia {
 }
 
 export default function SearchMedia() {
-    const baseUrl = 'http://localhost:8080/';
-    //const baseUrl = window.location.origin;
+    //const baseUrl = 'http://localhost:8080/';
+    const baseUrl = window.location.origin;
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object
