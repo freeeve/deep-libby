@@ -7,6 +7,10 @@ import Diff from "./Diff.tsx";
 import Intersect from "./Intersect.tsx";
 import Unique from "./Unique.tsx";
 import Libraries from "./Libraries.tsx";
+import ReactGA from 'react-ga4';
+
+ReactGA.initialize('G-CDPWS8N9W6')
+ReactGA.send('pageview')
 
 function App() {
     return (
