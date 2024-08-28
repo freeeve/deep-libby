@@ -13,7 +13,10 @@ interface SearchMedia {
 
 export default function SearchMedia() {
     //const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    let baseUrl = window.location.origin;
+    if (baseUrl === 'http://localhost:5173') {
+        baseUrl = 'http://localhost:8080';
+    }
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object

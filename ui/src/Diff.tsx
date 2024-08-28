@@ -44,7 +44,10 @@ interface LibraryOption {
 
 export default function Diff() {
     // const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    let baseUrl = window.location.origin;
+    if (baseUrl === 'http://localhost:5173') {
+        baseUrl = 'http://localhost:8080';
+    }
     const navigate = useNavigate();
     const {leftLibraryId, rightLibraryId} = useParams();
     const leftLibraryIdInt = parseInt(leftLibraryId || '-1');
@@ -56,15 +59,30 @@ export default function Diff() {
         {headerName: 'Title', field: 'title', minWidth: 250, sort: 'asc'},
         {
             headerName: 'Creators', field: 'creators',
-            valueFormatter: (params) => params.value.map((creator: any) => creator.name + ' (' + creator.role + ')').join(', ')
+            valueFormatter: (params) => {
+                if (params.value && params.value.length) {
+                    return params.value.map((creator: any) => creator.name + ' (' + creator.role + ')').join(', ')
+                }
+                return '';
+            },
         },
         {
             headerName: 'Formats', field: 'formats',
-            valueFormatter: (params) => params.value.map((format: string) => format).join(', ')
+            valueFormatter: (params) => {
+                if (params.value && params.value.length) {
+                    return params.value.map((format: string) => format).join(', ')
+                }
+                return '';
+            },
         },
         {
             headerName: 'Languages', field: 'languages',
-            valueFormatter: (params) => params.value.map((language: string) => language).join(', ')
+            valueFormatter: (params) => {
+                if (params.value && params.value.length) {
+                    return params.value.map((language: string) => language).join(', ')
+                }
+                return '';
+            },
         },
         {headerName: 'Owned', field: 'ownedCount', width: 110},
         {headerName: 'Available', field: 'availableCount', width: 140},

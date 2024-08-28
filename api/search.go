@@ -33,6 +33,8 @@ func (s *SearchIndex) Index(name string, id uint64) {
 
 func (s *SearchIndex) Search(query string) []uint64 {
 	query = strings.TrimSpace(query)
+	query = strings.Replace(query, " and ", " ", -1)
+	query = strings.Replace(query, " & ", " ", -1)
 	trigrams := getTrigrams(query)
 	var results *roaring64.Bitmap
 	for _, trigram := range trigrams {
@@ -72,6 +74,10 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	for _, id := range ids {
 		found := false
 		media := mediaMap[id]
+		availability, availabilityExists := availabilityMap[id]
+		if !availabilityExists || len(availability) == 0 {
+			continue
+		}
 		if strings.Contains(strings.ToLower(media.Title), lowerQuery) {
 			results = append(results, mediaMap[id])
 			found = true

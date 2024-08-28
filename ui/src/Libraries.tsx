@@ -18,7 +18,10 @@ interface GridOptions {
 
 export default function Libraries() {
     //const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    let baseUrl = window.location.origin;
+    if (baseUrl === 'http://localhost:5173') {
+        baseUrl = 'http://localhost:8080';
+    }
     const [gridOptions, setGridOptions] = useState<GridOptions>({api: null});
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const [libraries, setLibraries] = useState<Library[]>([]);

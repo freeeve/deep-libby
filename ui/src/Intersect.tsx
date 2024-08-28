@@ -50,7 +50,10 @@ interface LibraryOption {
 
 export default function Intersect() {
     // const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    let baseUrl = window.location.origin;
+    if (baseUrl === 'http://localhost:5173') {
+        baseUrl = 'http://localhost:8080';
+    }
     const navigate = useNavigate();
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const {leftLibraryId, rightLibraryId} = useParams();
@@ -63,20 +66,29 @@ export default function Intersect() {
         {
             headerName: 'Creator Names', field: 'creators',
             valueFormatter: (params: any) => {
-                return params.value.map((creator: any) => creator.name).join(', ');
+                if (params.value && params.value.length) {
+                    return params.value.map((creator: any) => creator.name).join(', ');
+                }
+                return '';
             }
         },
         {
             headerName: 'Formats', field: 'formats',
             valueFormatter: (params: any) => {
-                return params.value.join(', ');
+                if (params.value && params.value.length) {
+                    return params.value.join(', ');
+                }
+                return '';
             }
         },
 
         {
             headerName: 'Languages', field: 'languages',
             valueFormatter: (params: any) => {
-                return params.value.join(', ');
+                if (params.value && params.value.length) {
+                    return params.value.join(', ');
+                }
+                return '';
             }
         },
         {

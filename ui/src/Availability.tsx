@@ -26,7 +26,10 @@ interface SelectedMedia {
 
 export default function Availability() {
     //const baseUrl = 'http://localhost:8080/';
-    const baseUrl = window.location.origin;
+    let baseUrl = window.location.origin;
+    if (baseUrl === 'http://localhost:5173') {
+        baseUrl = 'http://localhost:8080';
+    }
     const {mediaId} = useParams();
     console.log(mediaId);
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
