@@ -1,5 +1,5 @@
 import {useParams, useNavigate} from "react-router-dom";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {AgGridReact} from "ag-grid-react";
 
 import 'ag-grid-community/styles/ag-grid.css';
@@ -40,12 +40,12 @@ interface LibraryOption {
 }
 
 export default function Unique() {
-    // const baseUrl = 'http://localhost:8080/';
     let baseUrl = window.location.origin;
     if (baseUrl === 'http://localhost:5173') {
         baseUrl = 'http://localhost:8080';
     }
     const navigate = useNavigate();
+    const [isFetching, setIsFetching] = useState(false);
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const {libraryId} = useParams();
     const libraryIdInt = parseInt(libraryId || '-1');
@@ -129,6 +129,10 @@ export default function Unique() {
     }
 
     const selectLibraries = (libraryId: number) => {
+        if (isFetching) {
+            return;
+        }
+        setIsFetching(true);
         let url = new URL('/api/unique', baseUrl);
         let params: any = {websiteId: libraryId};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
@@ -142,7 +146,10 @@ export default function Unique() {
             })
             .catch((error) => {
                 console.error('Error:', error);
-            });
+            })
+            .finally(() => {
+                setIsFetching(false);
+            });;
     };
 
     const selectLibrary = (selectedOption: any) => {
@@ -150,9 +157,11 @@ export default function Unique() {
         selectLibraries(selectedOption.id);
     }
 
-    if (libraryIdInt != -1 && uniqueResponse.library.id === '') {
-        selectLibraries(libraryIdInt);
-    }
+    useEffect(() => {
+        if (libraryIdInt != -1 && uniqueResponse.library.id === '') {
+            selectLibraries(libraryIdInt);
+        }
+    }, [libraryIdInt]);
 
     const autoSizeStrategy: SizeColumnsToFitGridStrategy = {
         type: 'fitGridWidth',

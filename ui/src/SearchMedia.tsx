@@ -12,7 +12,6 @@ interface SearchMedia {
 }
 
 export default function SearchMedia() {
-    //const baseUrl = 'http://localhost:8080/';
     let baseUrl = window.location.origin;
     if (baseUrl === 'http://localhost:5173') {
         baseUrl = 'http://localhost:8080';
@@ -46,7 +45,7 @@ export default function SearchMedia() {
             abortControllerRef.current.abort();
         }
         let term = event.target.value;
-        if (term.length < 3) {
+        if (term.length < 1) {
             setData({results: []});
             return
         }
@@ -119,7 +118,7 @@ export default function SearchMedia() {
                 </div>
                 <input type="text"
                        value={searchTerm}
-                       placeholder="Search for a book (min 3 characters)"
+                       placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
                        style={{width: '100%', height: 50, fontSize: 24}}
                        onChange={handleInputChange}
                 />

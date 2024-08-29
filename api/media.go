@@ -110,5 +110,7 @@ func readMedia() {
 		builder.WriteString(media.Title)
 		search.Index(builder.String(), mediaId)
 	}
+	// TODO probably do this a better way
+	dataLoaded = true
 	log.Info().Msg("done reading media")
 }

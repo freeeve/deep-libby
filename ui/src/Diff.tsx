@@ -1,5 +1,5 @@
 import {useParams, useNavigate} from "react-router-dom";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import AsyncSelect from 'react-select'
 import {AgGridReact} from "ag-grid-react";
 
@@ -49,6 +49,7 @@ export default function Diff() {
         baseUrl = 'http://localhost:8080';
     }
     const navigate = useNavigate();
+    const [isFetching, setIsFetching] = useState(false);
     const {leftLibraryId, rightLibraryId} = useParams();
     const leftLibraryIdInt = parseInt(leftLibraryId || '-1');
     const rightLibraryIdInt = parseInt(rightLibraryId || '-1');
@@ -133,6 +134,10 @@ export default function Diff() {
     }
 
     const selectLibraries = (leftId: number, rightId: number) => {
+        if (isFetching) {
+            return;
+        }
+        setIsFetching(true);
         let url = new URL('/api/diff', baseUrl);
         let params: any = {leftWebsiteId: leftId, rightWebsiteId: rightId};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
@@ -147,6 +152,9 @@ export default function Diff() {
             })
             .catch((error) => {
                 console.error('Error:', error);
+            })
+            .finally(() => {
+                setIsFetching(false);
             });
     };
 
@@ -165,9 +173,11 @@ export default function Diff() {
         selectLibraries(leftLibraryIdInt, selectedOption.id);
     }
 
-    if (leftLibraryIdInt !== -1 && rightLibraryIdInt !== -1 && diffResponse.diff.length === 0) {
-        selectLibraries(leftLibraryIdInt, rightLibraryIdInt);
-    }
+    useEffect(() => {
+        if (leftLibraryIdInt !== -1 && rightLibraryIdInt !== -1 && diffResponse.diff.length === 0 && !isFetching) {
+            selectLibraries(leftLibraryIdInt, rightLibraryIdInt);
+        }
+    }, [leftLibraryIdInt, rightLibraryIdInt]);
 
     const autoSizeStrategy: SizeColumnsToFitGridStrategy = {
         type: 'fitGridWidth',

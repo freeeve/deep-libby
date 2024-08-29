@@ -1,5 +1,5 @@
 import {useParams, useNavigate} from "react-router-dom";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {AgGridReact} from "ag-grid-react";
 
 import 'ag-grid-community/styles/ag-grid.css';
@@ -54,6 +54,7 @@ export default function Intersect() {
     if (baseUrl === 'http://localhost:5173') {
         baseUrl = 'http://localhost:8080';
     }
+    const [isFetching, setIsFetching] = useState(false);
     const navigate = useNavigate();
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const {leftLibraryId, rightLibraryId} = useParams();
@@ -170,6 +171,10 @@ export default function Intersect() {
     }
 
     const selectLibraries = (leftId: number, rightId: number) => {
+        if (isFetching) {
+            return;
+        }
+        setIsFetching(true);
         let url = new URL('/api/intersect', baseUrl);
         let params: any = {leftWebsiteId: leftId, rightWebsiteId: rightId};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
@@ -184,6 +189,9 @@ export default function Intersect() {
             })
             .catch((error) => {
                 console.error('Error:', error);
+            })
+            .finally(() => {
+                setIsFetching(false); // Add this line
             });
     };
 
@@ -197,9 +205,11 @@ export default function Intersect() {
         selectLibraries(leftLibraryIdInt, selectedOption.id);
     }
 
-    if (leftLibraryIdInt !== -1 && rightLibraryIdInt !== -1 && intersectResponse.intersect.length === 0) {
-        selectLibraries(leftLibraryIdInt, rightLibraryIdInt);
-    }
+    useEffect(() => {
+        if (leftLibraryIdInt !== -1 && rightLibraryIdInt !== -1 && !isFetching) {
+            selectLibraries(leftLibraryIdInt, rightLibraryIdInt);
+        }
+    }, [leftLibraryIdInt, rightLibraryIdInt]);
 
     const autoSizeStrategy: SizeColumnsToFitGridStrategy = {
         type: 'fitGridWidth',

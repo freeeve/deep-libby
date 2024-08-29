@@ -221,6 +221,7 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 	diffResponse := DiffResponse{
 		Diff: diff,
 	}
+	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {
@@ -265,6 +266,8 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 	diffResponse := IntersectResponse{
 		Intersect: intersect,
 	}
+
+	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {
@@ -301,6 +304,8 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 		Library: library,
 		Unique:  unique,
 	}
+
+	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {

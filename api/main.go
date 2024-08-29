@@ -28,17 +28,24 @@ type UiStatic struct {
 var uiCache *bigcache.BigCache
 var s3Client *s3.Client
 
+const port = "443"
+
+var dataLoaded = false
+
 func main() {
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
+		log.Logger = log.Level(zerolog.DebugLevel)
+	} else {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000", NoColor: true})
+		log.Logger = log.Level(zerolog.InfoLevel)
 	}
-	log.Logger = log.Level(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
 	go readLibraries()
 	go readAvailability()
 	// this is the slowest one, let it block the server start
-	readMedia()
+	go readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
@@ -79,7 +86,6 @@ func main() {
 			log.Fatal().Err(err)
 		}
 	} else {
-		port := "443"
 		log.Info().Str("port", port).Msg("starting server")
 		privKey := "/etc/letsencrypt/live/deeplibby.com/privkey.pem"
 		certFile := "/etc/letsencrypt/live/deeplibby.com/fullchain.pem"
@@ -91,6 +97,12 @@ func main() {
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {
+	if !dataLoaded {
+		w.Header().Add("Content-Type", "text/html")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("server is initializing. please refresh in a minute..."))
+		return
+	}
 	uiPrefix := "ui"
 	var err error
 	if uiCache == nil {
@@ -181,6 +193,9 @@ func addToUICache(contentType string, responseBody *bytes.Buffer, path string) {
 }
 
 func getFromUICache(w http.ResponseWriter, path, acceptEncoding string) bool {
+	// all this cache hackiness is to make load time faster
+	// we cache both the gzip and non-gzip versions of the files
+	// TODO for some reason it is not expiring cache after 30 minutes
 	start := time.Now()
 	cached, err := uiCache.Get(path + "~" + acceptEncoding)
 	if err == nil {
