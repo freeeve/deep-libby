@@ -16,8 +16,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
+	"unsafe"
 )
 
 type UiStatic struct {
@@ -59,6 +61,7 @@ func main() {
 	apiServeMux.Handle("GET /api/diff", gziphandler.GzipHandler(http.HandlerFunc(diffHandler)))
 	apiServeMux.Handle("GET /api/intersect", gziphandler.GzipHandler(http.HandlerFunc(intersectHandler)))
 	apiServeMux.Handle("GET /api/unique", gziphandler.GzipHandler(http.HandlerFunc(uniqueHandler)))
+	apiServeMux.Handle("GET /api/memory", gziphandler.GzipHandler(http.HandlerFunc(memoryHandler)))
 
 	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
@@ -94,6 +97,26 @@ func main() {
 			log.Fatal().Err(err)
 		}
 	}
+}
+
+func calculateMemoryUsage(m interface{}) uint64 {
+	var size uintptr
+
+	v := reflect.ValueOf(m)
+	if v.Kind() == reflect.Map {
+		for _, key := range v.MapKeys() {
+			size += (unsafe.Sizeof(key.Interface()) + unsafe.Sizeof(v.MapIndex(key).Interface()))
+		}
+	}
+
+	return uint64(size)
+}
+
+func memoryHandler(writer http.ResponseWriter, request *http.Request) {
+	fmt.Printf("Memory usage of mediaMap: %d bytes\n", calculateMemoryUsage(mediaMap))
+	fmt.Printf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
+	fmt.Printf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
+	fmt.Printf("Memory usage of search index: %d bytes\n", calculateMemoryUsage(search.trigramMap))
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {

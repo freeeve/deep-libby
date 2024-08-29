@@ -9,6 +9,8 @@ interface SearchMedia {
     languages: string[];
     formats: string[];
     coverUrl: string;
+    seriesName: string;
+    seriesReadOrder: number;
 }
 
 export default function SearchMedia() {
@@ -81,7 +83,7 @@ export default function SearchMedia() {
                      cursor: 'pointer',
                  }}>
                 <div style={{textAlign: 'left'}}>
-                    <div><strong>{result.title}</strong></div>
+                    <div><strong>{result.title}{result.seriesName !== "" && <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong></div>
                     <span>Creators: {result.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}</span>
                     <div>Languages: {result.languages.join(', ')}</div>
                     <div>Formats: {result.formats.join(', ')}</div>

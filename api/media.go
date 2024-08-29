@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rs/zerolog/log"
@@ -22,14 +23,16 @@ type MediaCreator struct {
 }
 
 type Media struct {
-	Id          uint64         `json:"id"`
-	Title       string         `json:"title"`
-	Creators    []MediaCreator `json:"creators"`
-	Languages   []string       `json:"languages"`
-	CoverUrl    string         `json:"coverUrl"`
-	Formats     []string       `json:"formats"`
-	Subtitle    string         `json:"subtitle"`
-	Description string         `json:"description"`
+	Id              uint64         `json:"id"`
+	Title           string         `json:"title"`
+	Creators        []MediaCreator `json:"creators"`
+	Languages       []string       `json:"languages"`
+	CoverUrl        string         `json:"coverUrl"`
+	Formats         []string       `json:"formats"`
+	Subtitle        string         `json:"subtitle"`
+	Description     string         `json:"description"`
+	SeriesName      string         `json:"seriesName"`
+	SeriesReadOrder int            `json:"seriesReadOrder"`
 }
 
 var allMedia []Media
@@ -82,18 +85,21 @@ func readMedia() {
 		languages := strings.Split(record[3], ";")
 		formats := strings.Split(record[5], ";")
 		mediaId, err := strconv.ParseUint(record[0], 10, 64)
+		seriesReadOrder, err := strconv.Atoi(record[9])
 		if err != nil {
 			log.Error().Err(err)
 		}
 		media := Media{
-			Id:          mediaId,
-			Title:       record[1],
-			Creators:    creators,
-			Languages:   languages,
-			CoverUrl:    record[4],
-			Formats:     formats,
-			Subtitle:    record[6],
-			Description: record[7],
+			Id:              mediaId,
+			Title:           record[1],
+			Creators:        creators,
+			Languages:       languages,
+			CoverUrl:        record[4],
+			Formats:         formats,
+			Subtitle:        record[6],
+			Description:     record[7],
+			SeriesName:      record[8],
+			SeriesReadOrder: seriesReadOrder,
 		}
 		allMedia = append(allMedia, media)
 		mediaMap[mediaId] = media
@@ -108,6 +114,10 @@ func readMedia() {
 			builder.WriteString(format)
 		}
 		builder.WriteString(media.Title)
+		if media.SeriesName != "" {
+			builder.WriteString(fmt.Sprintf("#%d", seriesReadOrder))
+			builder.WriteString(media.SeriesName)
+		}
 		search.Index(builder.String(), mediaId)
 	}
 	// TODO probably do this a better way
