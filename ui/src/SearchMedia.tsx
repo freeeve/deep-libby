@@ -182,7 +182,6 @@ export default function SearchMedia() {
             </div>
             <div style={{fontSize: 24, paddingTop: 5}}>DeepLibby Search</div>
             <input type="text"
-                   value={}
                    placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}

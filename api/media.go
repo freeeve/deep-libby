@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,8 +39,36 @@ type Media struct {
 	SearchString    string         `json:"searchString"`
 	LibraryCount    int            `json:"libraryCount"`
 }
+type ConcurrentMediaSlice struct {
+	sync.RWMutex
+	slice []*Media
+}
 
-var allMedia []*Media
+var allMedia = &ConcurrentMediaSlice{
+	slice: make([]*Media, 0),
+}
+
+func (cms *ConcurrentMediaSlice) Add(media *Media) {
+	cms.Lock()
+	defer cms.Unlock()
+	cms.slice = append(cms.slice, media)
+}
+
+func (cms *ConcurrentMediaSlice) Get(index int) (*Media, bool) {
+	cms.RLock()
+	defer cms.RUnlock()
+	if index < 0 || index >= len(cms.slice) {
+		return nil, false
+	}
+	return cms.slice[index], true
+}
+
+func (cms *ConcurrentMediaSlice) Len() int {
+	cms.RLock()
+	defer cms.RUnlock()
+	return len(cms.slice)
+}
+
 var mediaMap *MediaMap
 
 type MediaMap struct {
@@ -98,6 +127,29 @@ func readMedia() {
 		}
 	}
 	cr := csv.NewReader(gzr)
+	numCPUs := max(runtime.NumCPU()/2, 1)
+	log.Info().Msgf("numCPUs: %d", numCPUs)
+	var wg sync.WaitGroup
+	records := make(chan []string, numCPUs*2)
+
+	// Create a number of goroutines equal to the number of CPUs
+	for i := 0; i < numCPUs; i++ {
+		wg.Add(1)
+		go func() {
+			var count int
+			var builder strings.Builder
+			defer wg.Done()
+			for record := range records {
+				handleRecord(record, &builder)
+				count++
+				if count%100000 == 0 {
+					duration := time.Since(startTime)
+					avgTimePerRecord := duration.Nanoseconds() / int64(count)
+					log.Info().Msgf("worker%d read %d media; avgTimePerRecord(ns): %d", i, count, avgTimePerRecord)
+				}
+			}
+		}()
+	}
 	for {
 		record, err := cr.Read()
 		if err == io.EOF {
@@ -106,59 +158,60 @@ func readMedia() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		var creators []MediaCreator
-		err = json.Unmarshal([]byte(record[2]), &creators)
-		if err != nil {
-			log.Error().Err(err)
-		}
-		languages := strings.Split(record[3], ";")
-		formats := strings.Split(record[5], ";")
-		mediaId, err := strconv.ParseUint(record[0], 10, 32)
-		if err != nil {
-			panic(err)
-		}
-		seriesReadOrder, err := strconv.Atoi(record[9])
-		if err != nil {
-			log.Error().Err(err)
-		}
-		media := Media{
-			Id:              mediaId,
-			Title:           record[1],
-			Creators:        creators,
-			Languages:       languages,
-			CoverUrl:        record[4],
-			Formats:         formats,
-			Subtitle:        record[6],
-			Description:     record[7],
-			SeriesName:      record[8],
-			SeriesReadOrder: seriesReadOrder,
-		}
-		allMedia = append(allMedia, &media)
-		mediaMap.Set(uint32(mediaId), &media)
-		var builder strings.Builder
-		for _, creator := range creators {
-			builder.WriteString(creator.Name)
-		}
-		for _, language := range languages {
-			builder.WriteString(language)
-		}
-		for _, format := range formats {
-			builder.WriteString(format)
-		}
-		builder.WriteString(media.Title)
-		if media.SeriesName != "" {
-			builder.WriteString(fmt.Sprintf("#%d", seriesReadOrder))
-			builder.WriteString(media.SeriesName)
-		}
-		search.Index(builder.String(), mediaId)
-		media.SearchString = strings.ToLower(builder.String())
-		if len(allMedia)%100000 == 0 {
-			duration := time.Since(startTime)
-			avgTimePerRecord := duration.Nanoseconds() / int64(len(allMedia))
-			log.Debug().Msgf("read %d media; avgTimePerRecord(ns): %d", len(allMedia), avgTimePerRecord)
-		}
+		records <- record
 	}
+	close(records)
+	wg.Wait()
 	// TODO probably do this a better way
 	dataLoaded = true
 	log.Info().Msg("done reading media")
+}
+
+func handleRecord(record []string, builder *strings.Builder) {
+	var creators []MediaCreator
+	err := json.Unmarshal([]byte(record[2]), &creators)
+	if err != nil {
+		log.Error().Err(err)
+	}
+	languages := strings.Split(record[3], ";")
+	formats := strings.Split(record[5], ";")
+	mediaId, err := strconv.ParseUint(record[0], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+	seriesReadOrder, err := strconv.Atoi(record[9])
+	if err != nil {
+		log.Error().Err(err)
+	}
+	media := Media{
+		Id:              mediaId,
+		Title:           record[1],
+		Creators:        creators,
+		Languages:       languages,
+		CoverUrl:        record[4],
+		Formats:         formats,
+		Subtitle:        record[6],
+		Description:     record[7],
+		SeriesName:      record[8],
+		SeriesReadOrder: seriesReadOrder,
+	}
+	allMedia.Add(&media)
+	mediaMap.Set(uint32(mediaId), &media)
+	builder.Reset()
+	for _, creator := range creators {
+		builder.WriteString(creator.Name)
+	}
+	for _, language := range languages {
+		builder.WriteString(language)
+	}
+	for _, format := range formats {
+		builder.WriteString(format)
+	}
+	builder.WriteString(media.Title)
+	if media.SeriesName != "" {
+		builder.WriteString(fmt.Sprintf("#%d", seriesReadOrder))
+		builder.WriteString(media.SeriesName)
+	}
+	search.Index(builder.String(), mediaId)
+	media.SearchString = strings.ToLower(builder.String())
 }
