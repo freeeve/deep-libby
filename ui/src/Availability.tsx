@@ -15,6 +15,9 @@ interface SelectedMedia {
     formats: string[];
     description: string;
     coverUrl: string;
+    seriesName: string;
+    seriesReadOrder: number;
+    libraryCount: number;
     availability: {
         library: { id: string, name: string, websiteId: number },
         ownedCount: number,
@@ -25,7 +28,6 @@ interface SelectedMedia {
 }
 
 export default function Availability() {
-    //const baseUrl = 'http://localhost:8080/';
     let baseUrl = window.location.origin;
     if (baseUrl === 'http://localhost:5173') {
         baseUrl = 'http://localhost:8080';
@@ -113,6 +115,8 @@ export default function Availability() {
                     <div>
                         <div style={{textAlign: 'left'}}>
                             <div><strong>Title:</strong> <strong>{selectedMedia.title}</strong></div>
+                            {selectedMedia.seriesName !== "" && <div><strong>Series:</strong>
+                                <strong>#{selectedMedia.seriesReadOrder} in {selectedMedia.seriesName}</strong></div>}
                             <div>
                                 <strong>Creators:</strong> {selectedMedia.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}
                             </div>
@@ -124,15 +128,19 @@ export default function Availability() {
                                 <div><strong>Description:</strong></div>
                                 <div dangerouslySetInnerHTML={{__html: selectedMedia.description}}></div>
                             </div>
-                            <div><a href={'https://www.overdrive.com/media/' + selectedMedia.id}>open in overdrive</a></div>
+                            <div><a href={'https://www.overdrive.com/media/' + selectedMedia.id}>open in overdrive</a>
+                            </div>
                         </div>
                     </div>
-                    <img src={selectedMedia.coverUrl}
-                         alt={selectedMedia.title}
-                         width={0} height={0}
-                         sizes="100vw"
-                         style={{width: 'auto', height: '100px'}} // optional
-                    />
+                    <div style={{textAlign: 'left'}}>
+                        <span style={{verticalAlign: 'top', marginRight: 5}}>owned by {selectedMedia.libraryCount} libraries</span>
+                        <img src={selectedMedia.coverUrl}
+                             alt={selectedMedia.title}
+                             width={0} height={0}
+                             sizes="100vw"
+                             style={{width: 'auto', height: '100px'}} // optional
+                        />
+                    </div>
                 </div>
                 <div className="ag-theme-alpine-auto-dark" style={{height: 600, marginTop: 25}}>
                     <AgGridReact

@@ -13,6 +13,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type MediaCreator struct {
@@ -33,13 +35,40 @@ type Media struct {
 	Description     string         `json:"description"`
 	SeriesName      string         `json:"seriesName"`
 	SeriesReadOrder int            `json:"seriesReadOrder"`
+	SearchString    string         `json:"searchString"`
+	LibraryCount    int            `json:"libraryCount"`
 }
 
-var allMedia []Media
-var mediaMap map[uint64]Media
+var allMedia []*Media
+var mediaMap *MediaMap
+
+type MediaMap struct {
+	sync.RWMutex
+	m map[uint32]*Media
+}
+
+func NewMediaMap() *MediaMap {
+	return &MediaMap{
+		m: make(map[uint32]*Media),
+	}
+}
+
+func (mm *MediaMap) Set(key uint32, value *Media) {
+	mm.Lock()
+	defer mm.Unlock()
+	mm.m[key] = value
+}
+
+func (mm *MediaMap) Get(key uint32) (*Media, bool) {
+	mm.RLock()
+	defer mm.RUnlock()
+	media, ok := mm.m[key]
+	return media, ok
+}
 
 func readMedia() {
-	mediaMap = make(map[uint64]Media)
+	mediaMap = NewMediaMap()
+	startTime := time.Now()
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/media.csv.gz")
@@ -84,7 +113,10 @@ func readMedia() {
 		}
 		languages := strings.Split(record[3], ";")
 		formats := strings.Split(record[5], ";")
-		mediaId, err := strconv.ParseUint(record[0], 10, 64)
+		mediaId, err := strconv.ParseUint(record[0], 10, 32)
+		if err != nil {
+			panic(err)
+		}
 		seriesReadOrder, err := strconv.Atoi(record[9])
 		if err != nil {
 			log.Error().Err(err)
@@ -101,8 +133,8 @@ func readMedia() {
 			SeriesName:      record[8],
 			SeriesReadOrder: seriesReadOrder,
 		}
-		allMedia = append(allMedia, media)
-		mediaMap[mediaId] = media
+		allMedia = append(allMedia, &media)
+		mediaMap.Set(uint32(mediaId), &media)
 		var builder strings.Builder
 		for _, creator := range creators {
 			builder.WriteString(creator.Name)
@@ -119,6 +151,12 @@ func readMedia() {
 			builder.WriteString(media.SeriesName)
 		}
 		search.Index(builder.String(), mediaId)
+		media.SearchString = strings.ToLower(builder.String())
+		if len(allMedia)%100000 == 0 {
+			duration := time.Since(startTime)
+			avgTimePerRecord := duration.Nanoseconds() / int64(len(allMedia))
+			log.Debug().Msgf("read %d media; avgTimePerRecord(ns): %d", len(allMedia), avgTimePerRecord)
+		}
 	}
 	// TODO probably do this a better way
 	dataLoaded = true

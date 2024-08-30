@@ -27,7 +27,7 @@ type LibraryMediaCounts struct {
 }
 
 type AvailabilityResponse struct {
-	Media
+	*Media
 	Availability []LibraryMediaCounts `json:"availability"`
 }
 
@@ -36,7 +36,7 @@ type DiffResponse struct {
 }
 
 type DiffMediaCounts struct {
-	Media
+	*Media
 	LibraryMediaCounts
 }
 
@@ -46,7 +46,7 @@ type UniqueResponse struct {
 }
 
 type UniqueMediaCounts struct {
-	Media
+	*Media
 	MediaCounts
 }
 
@@ -55,17 +55,17 @@ type IntersectResponse struct {
 }
 
 type IntersectMediaCounts struct {
-	Media
+	*Media
 	LeftLibraryMediaCounts  LibraryMediaCounts `json:"leftLibraryMediaCounts"`
 	RightLibraryMediaCounts LibraryMediaCounts `json:"rightLibraryMediaCounts"`
 }
 
-var availabilityMap map[uint64]map[int]MediaCounts
-var libraryMediaMap map[int]map[uint64]MediaCounts
+var availabilityMap map[uint32]map[int]MediaCounts
+var libraryMediaMap map[int]map[uint32]MediaCounts
 
 func readAvailability() {
-	availabilityMap = make(map[uint64]map[int]MediaCounts)
-	libraryMediaMap = make(map[int]map[uint64]MediaCounts)
+	availabilityMap = make(map[uint32]map[int]MediaCounts)
+	libraryMediaMap = make(map[int]map[uint32]MediaCounts)
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/availability.csv.gz")
@@ -103,7 +103,7 @@ func readAvailability() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		id, err := strconv.ParseUint(record[0], 10, 64)
+		id, err := strconv.ParseUint(record[0], 10, 32)
 		if err != nil {
 			log.Error().Err(err)
 		}
@@ -127,8 +127,8 @@ func readAvailability() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		if _, exists := availabilityMap[id]; !exists {
-			availabilityMap[id] = map[int]MediaCounts{}
+		if _, exists := availabilityMap[uint32(id)]; !exists {
+			availabilityMap[uint32(id)] = map[int]MediaCounts{}
 		}
 		estimatedWaitDays = estimatedWaitDays
 		if availableCount > holdsCount {
@@ -140,24 +140,25 @@ func readAvailability() {
 			HoldsCount:        uint32(holdsCount),
 			EstimatedWaitDays: int32(estimatedWaitDays),
 		}
-		availabilityMap[id][websiteId] = mediaCounts
+		availabilityMap[uint32(id)][websiteId] = mediaCounts
 		if _, exists := libraryMediaMap[websiteId]; !exists {
-			libraryMediaMap[websiteId] = map[uint64]MediaCounts{}
+			libraryMediaMap[websiteId] = map[uint32]MediaCounts{}
 		}
-		libraryMediaMap[websiteId][id] = mediaCounts
+		libraryMediaMap[websiteId][uint32(id)] = mediaCounts
 	}
 	log.Info().Msg("done reading availability")
 }
 
 func availabilityHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseUint(r.URL.Query().Get("id"), 10, 64)
+	id, err := strconv.ParseUint(r.URL.Query().Get("id"), 10, 32)
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	log.Info().Msgf("/api/availability media: %v", mediaMap[id])
+	media, _ := mediaMap.Get(uint32(id))
+	log.Info().Msgf("/api/availability media: %v", media)
 	results := []LibraryMediaCounts{}
-	for websiteId, counts := range availabilityMap[id] {
+	for websiteId, counts := range availabilityMap[uint32(id)] {
 		library, exists := libraryMap[websiteId]
 		if !exists {
 			log.Error().Msgf("library not found for website id %d", websiteId)
@@ -171,8 +172,9 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 			MediaCounts: counts,
 		})
 	}
+	media.LibraryCount = len(availabilityMap[uint32(id)])
 	availability := AvailabilityResponse{
-		Media:        mediaMap[id],
+		Media:        media,
 		Availability: results,
 	}
 	w.Header().Add("Content-Type", "application/json")
@@ -206,8 +208,9 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 	for id, leftCount := range leftCounts {
 		_, exists := rightCounts[id]
 		if !exists {
+			mediaRecord, _ := mediaMap.Get(id)
 			diff = append(diff, DiffMediaCounts{
-				Media: mediaMap[id],
+				Media: mediaRecord,
 				LibraryMediaCounts: LibraryMediaCounts{
 					Library:     leftLibrary,
 					MediaCounts: leftCount,
@@ -253,8 +256,9 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 	for id, leftCount := range leftMedia {
 		rightCount, exists := rightMedia[id]
 		if exists {
+			media, _ := mediaMap.Get(id)
 			intersect = append(intersect, IntersectMediaCounts{
-				Media:                   mediaMap[id],
+				Media:                   media,
 				LeftLibraryMediaCounts:  LibraryMediaCounts{leftLibrary, leftCount},
 				RightLibraryMediaCounts: LibraryMediaCounts{rightLibrary, rightCount},
 			})
@@ -291,8 +295,9 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 	var unique []UniqueMediaCounts
 	for id, count := range media {
 		if len(availabilityMap[id]) == 1 {
+			mediaRecord, _ := mediaMap.Get(id)
 			unique = append(unique, UniqueMediaCounts{
-				Media:       mediaMap[id],
+				Media:       mediaRecord,
 				MediaCounts: count,
 			})
 		}
