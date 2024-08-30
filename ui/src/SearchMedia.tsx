@@ -88,7 +88,7 @@ export default function SearchMedia() {
                         console.error(error);
                     }
                 });
-        }, isMobile ? 700 : 100);
+        }, isMobile ? 700 : 50);
     };
 
     const Row = (index: number) => {
@@ -182,7 +182,7 @@ export default function SearchMedia() {
             </div>
             <div style={{fontSize: 24, paddingTop: 5}}>DeepLibby Search</div>
             <input type="text"
-                   value={searchTerm}
+                   value={}
                    placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}

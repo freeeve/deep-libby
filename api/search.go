@@ -104,12 +104,11 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		media, _ := mediaMap.Get(id)
 		media.LibraryCount = len(availabilityMap[id])
 		results = append(results, media)
-		if len(results) >= 1000 {
+		if len(results) >= 500 {
 			break
 		}
 	}
 	// TODO paginate this better
-	// TODO sort better
 	result := map[string][]*Media{}
 	sort.Sort(ByCustomSearchSortOrder{query: lowerQuery, results: results})
 	result["results"] = results
