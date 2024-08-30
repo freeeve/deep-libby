@@ -127,7 +127,7 @@ func readMedia() {
 		}
 	}
 	cr := csv.NewReader(gzr)
-	numCPUs := max(runtime.NumCPU()/2, 1)
+	numCPUs := max(runtime.NumCPU()/2, 2)
 	log.Info().Msgf("numCPUs: %d", numCPUs)
 	var wg sync.WaitGroup
 	records := make(chan []string, numCPUs*2)
