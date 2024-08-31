@@ -204,7 +204,7 @@ export default function Intersect() {
     }
 
     useEffect(() => {
-        if (leftLibraryId !== -1 && rightLibraryId !== -1 && !isFetching) {
+        if (leftLibraryId !== '' && rightLibraryId !== '' && !isFetching) {
             selectLibraries(leftLibraryId, rightLibraryId);
         }
     }, [leftLibraryId, rightLibraryId]);
@@ -242,7 +242,7 @@ export default function Intersect() {
                                 classNamePrefix={"react-select"}
                                 defaultValue={libraries.filter((option: any) => option.value === leftLibraryId)[0]}
                                 options={libraries}
-                                onChange={(event) => selectLeftLibrary({id: event ? event.value : -1})}>
+                                onChange={(event) => selectLeftLibrary({id: event ? event.value : ''})}>
                             </AsyncSelect>
                         </div>
                         <div style={{display: 'inline'}}>
@@ -252,7 +252,7 @@ export default function Intersect() {
                                 classNamePrefix={"react-select"}
                                 defaultValue={libraries.filter((option: any) => option.value === rightLibraryId)[0]}
                                 options={libraries}
-                                onChange={(event) => selectRightLibrary({id: event ? event.value : -1})}>
+                                onChange={(event) => selectRightLibrary({id: event ? event.value : ''})}>
                             </AsyncSelect>
                         </div>
                     </div>

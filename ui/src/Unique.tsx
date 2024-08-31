@@ -47,7 +47,7 @@ export default function Unique() {
     const navigate = useNavigate();
     const [isFetching, setIsFetching] = useState(false);
     const [filteredRowCount, setFilteredRowCount] = useState(0);
-    const {libraryId} = useParams();
+    let {libraryId = ''} = useParams();
     const [libraries, setLibraries] = useState<LibraryOption[]>([]);
     const [uniqueResponse, setUniqueResponse] = useState<UniqueResponse>({
         library: {id: '', name: '', websiteId: 0, isConsortium: false},
@@ -127,8 +127,8 @@ export default function Unique() {
         libraryOptions();
     }
 
-    const selectLibraries = (libraryId: number) => {
-        if (isFetching) {
+    const selectLibraries = (libraryId: string) => {
+        if (isFetching || libraryId === '') {
             return;
         }
         setIsFetching(true);
@@ -148,7 +148,8 @@ export default function Unique() {
             })
             .finally(() => {
                 setIsFetching(false);
-            });;
+            });
+        ;
     };
 
     const selectLibrary = (selectedOption: any) => {

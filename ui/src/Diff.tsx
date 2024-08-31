@@ -172,7 +172,7 @@ export default function Diff() {
     }
 
     useEffect(() => {
-        if (leftLibraryId !== -1 && rightLibraryId !== -1 && diffResponse.diff.length === 0 && !isFetching) {
+        if (leftLibraryId !== '' && rightLibraryId !== '' && diffResponse.diff.length === 0 && !isFetching) {
             selectLibraries(leftLibraryId, rightLibraryId);
         }
     }, [leftLibraryId, rightLibraryId]);
@@ -200,7 +200,7 @@ export default function Diff() {
                             classNamePrefix={"react-select"}
                             defaultValue={libraries.filter((option: any) => option.value === leftLibraryId)[0]}
                             options={libraries}
-                            onChange={(event) => selectLeftLibrary({id: event ? event.value : -1})}>
+                            onChange={(event) => selectLeftLibrary({id: event ? event.value : ''})}>
                         </AsyncSelect>
                     </div>
                     <div style={{display: 'inline'}}>
@@ -211,7 +211,7 @@ export default function Diff() {
                             classNamePrefix={"react-select"}
                             defaultValue={libraries.filter((option: any) => option.value === rightLibraryId)[0]}
                             options={libraries}
-                            onChange={(event) => selectRightLibrary({id: event ? event.value : -1})}>
+                            onChange={(event) => selectRightLibrary({id: event ? event.value : ''})}>
                         </AsyncSelect>
                     </div>
                     <a href={""} style={{display: 'block', marginTop: 10}} onClick={() => flip()}>
