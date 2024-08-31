@@ -200,6 +200,7 @@ func handleRecord(record []string, builder *strings.Builder) {
 	builder.Reset()
 	for _, creator := range creators {
 		builder.WriteString(creator.Name)
+		builder.WriteString(" ")
 	}
 	for _, language := range languages {
 		builder.WriteString(language)
@@ -207,7 +208,9 @@ func handleRecord(record []string, builder *strings.Builder) {
 	for _, format := range formats {
 		builder.WriteString(format)
 	}
+	builder.WriteString(" ")
 	builder.WriteString(media.Title)
+	builder.WriteString(" ")
 	if media.SeriesName != "" {
 		builder.WriteString(fmt.Sprintf("#%d", seriesReadOrder))
 		builder.WriteString(media.SeriesName)

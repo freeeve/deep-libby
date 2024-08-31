@@ -48,7 +48,6 @@ export default function Unique() {
     const [isFetching, setIsFetching] = useState(false);
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const {libraryId} = useParams();
-    const libraryIdInt = parseInt(libraryId || '-1');
     const [libraries, setLibraries] = useState<LibraryOption[]>([]);
     const [uniqueResponse, setUniqueResponse] = useState<UniqueResponse>({
         library: {id: '', name: '', websiteId: 0, isConsortium: false},
@@ -116,7 +115,7 @@ export default function Unique() {
             .then((data) => {
                 data.libraries.sort((a: Library, b: Library) => a.name.localeCompare(b.name));
                 setLibraries(data.libraries.map((library: Library) => {
-                    return {value: library.websiteId, label: library.name};
+                    return {value: library.id, label: library.name};
                 }));
             })
             .catch((error) => {
@@ -134,7 +133,7 @@ export default function Unique() {
         }
         setIsFetching(true);
         let url = new URL('/api/unique', baseUrl);
-        let params: any = {websiteId: libraryId};
+        let params: any = {libraryId: libraryId};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
         // Fetch the availability data
         fetch(url, {
@@ -158,10 +157,10 @@ export default function Unique() {
     }
 
     useEffect(() => {
-        if (libraryIdInt != -1 && uniqueResponse.library.id === '') {
-            selectLibraries(libraryIdInt);
+        if (libraryId != "" && uniqueResponse.library.id === '') {
+            selectLibraries(libraryId);
         }
-    }, [libraryIdInt]);
+    }, [libraryId]);
 
     const autoSizeStrategy: SizeColumnsToFitGridStrategy = {
         type: 'fitGridWidth',
@@ -179,9 +178,9 @@ export default function Unique() {
                                 placeholder={"Select library"}
                                 className={"react-select-container"}
                                 classNamePrefix={"react-select"}
-                                defaultValue={libraries.filter((option: any) => option.value === libraryIdInt)[0]}
+                                defaultValue={libraries.filter((option: any) => option.value === libraryId)[0]}
                                 options={libraries}
-                                onChange={(event) => selectLibrary({id: event ? event.value : -1})}>
+                                onChange={(event) => selectLibrary({id: event ? event.value : ""})}>
                             </AsyncSelect>
                         </div>
                     </div>

@@ -50,9 +50,7 @@ export default function Diff() {
     }
     const navigate = useNavigate();
     const [isFetching, setIsFetching] = useState(false);
-    const {leftLibraryId, rightLibraryId} = useParams();
-    const leftLibraryIdInt = parseInt(leftLibraryId || '-1');
-    const rightLibraryIdInt = parseInt(rightLibraryId || '-1');
+    let {leftLibraryId = '', rightLibraryId = ''} = useParams();
     const [libraries, setLibraries] = useState<LibraryOption[]>([]);
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const [diffResponse, setDiffResponse] = useState<DiffResponse>({diff: []});
@@ -121,7 +119,7 @@ export default function Diff() {
             .then((data) => {
                 data.libraries.sort((a: Library, b: Library) => a.name.localeCompare(b.name));
                 setLibraries(data.libraries.map((library: Library) => {
-                    return {value: library.websiteId, label: library.name};
+                    return {value: library.id, label: library.name};
                 }));
             })
             .catch((error) => {
@@ -133,13 +131,13 @@ export default function Diff() {
         libraryOptions();
     }
 
-    const selectLibraries = (leftId: number, rightId: number) => {
-        if (isFetching) {
+    const selectLibraries = (leftId: string, rightId: string) => {
+        if (isFetching || leftId == '' || rightId == '') {
             return;
         }
         setIsFetching(true);
         let url = new URL('/api/diff', baseUrl);
-        let params: any = {leftWebsiteId: leftId, rightWebsiteId: rightId};
+        let params: any = {leftLibraryId: leftId, rightLibraryId: rightId};
         Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
         // Fetch the availability data
         fetch(url, {
@@ -154,30 +152,30 @@ export default function Diff() {
                 console.error('Error:', error);
             })
             .finally(() => {
-                setIsFetching(false);
+                setIsFetching(false); // Add this line
             });
     };
 
     const flip = () => {
-        navigate('/diff/' + rightLibraryIdInt + '/' + leftLibraryIdInt);
-        selectLibraries(rightLibraryIdInt, leftLibraryIdInt);
+        navigate('/diff/' + rightLibraryId + '/' + leftLibraryId);
+        selectLibraries(rightLibraryId, leftLibraryId);
     }
 
     const selectLeftLibrary = (selectedOption: any) => {
-        navigate('/diff/' + selectedOption.id + '/' + rightLibraryIdInt);
-        selectLibraries(selectedOption.id, rightLibraryIdInt);
+        navigate('/diff/' + selectedOption.id + '/' + rightLibraryId);
+        selectLibraries(selectedOption.id, rightLibraryId);
     }
 
     const selectRightLibrary = (selectedOption: any) => {
-        navigate('/diff/' + leftLibraryIdInt + '/' + selectedOption.id);
-        selectLibraries(leftLibraryIdInt, selectedOption.id);
+        navigate('/diff/' + leftLibraryId + '/' + selectedOption.id);
+        selectLibraries(leftLibraryId, selectedOption.id);
     }
 
     useEffect(() => {
-        if (leftLibraryIdInt !== -1 && rightLibraryIdInt !== -1 && diffResponse.diff.length === 0 && !isFetching) {
-            selectLibraries(leftLibraryIdInt, rightLibraryIdInt);
+        if (leftLibraryId !== -1 && rightLibraryId !== -1 && diffResponse.diff.length === 0 && !isFetching) {
+            selectLibraries(leftLibraryId, rightLibraryId);
         }
-    }, [leftLibraryIdInt, rightLibraryIdInt]);
+    }, [leftLibraryId, rightLibraryId]);
 
     const autoSizeStrategy: SizeColumnsToFitGridStrategy = {
         type: 'fitGridWidth',
@@ -200,7 +198,7 @@ export default function Diff() {
                             placeholder={"Select left library"}
                             className={"react-select-container"}
                             classNamePrefix={"react-select"}
-                            defaultValue={libraries.filter((option: any) => option.value === leftLibraryIdInt)[0]}
+                            defaultValue={libraries.filter((option: any) => option.value === leftLibraryId)[0]}
                             options={libraries}
                             onChange={(event) => selectLeftLibrary({id: event ? event.value : -1})}>
                         </AsyncSelect>
@@ -211,7 +209,7 @@ export default function Diff() {
                             placeholder={"Select right library"}
                             className={"react-select-container"}
                             classNamePrefix={"react-select"}
-                            defaultValue={libraries.filter((option: any) => option.value === rightLibraryIdInt)[0]}
+                            defaultValue={libraries.filter((option: any) => option.value === rightLibraryId)[0]}
                             options={libraries}
                             onChange={(event) => selectRightLibrary({id: event ? event.value : -1})}>
                         </AsyncSelect>

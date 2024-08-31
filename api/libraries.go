@@ -25,10 +25,10 @@ type LibraryResponse struct {
 	Libraries []Library `json:"libraries"`
 }
 
-var libraryMap map[int]Library
+var libraryMap map[string]Library
 
 func readLibraries() {
-	libraryMap = make(map[int]Library)
+	libraryMap = make(map[string]Library)
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/libraries.csv.gz")
@@ -70,7 +70,7 @@ func readLibraries() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		libraryMap[websiteId] = Library{
+		libraryMap[record[0]] = Library{
 			Id:           record[0],
 			WebsiteId:    websiteId,
 			Name:         record[2],

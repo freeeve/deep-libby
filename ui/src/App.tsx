@@ -19,8 +19,10 @@ function App() {
                 <Route path="/" element={<SearchMedia/>}/>
                 <Route path="/availability/:mediaId" element={<Availability/>}/>
                 <Route path="/diff" element={<Diff/>}/>
+                <Route path="/diff/:leftLibraryId/" element={<Diff/>}/>
                 <Route path="/diff/:leftLibraryId/:rightLibraryId" element={<Diff/>}/>
                 <Route path="/intersect" element={<Intersect/>}/>
+                <Route path="/intersect/:leftLibraryId/" element={<Intersect/>}/>
                 <Route path="/intersect/:leftLibraryId/:rightLibraryId" element={<Intersect/>}/>
                 <Route path="/unique" element={<Unique/>}/>
                 <Route path="/unique/:libraryId" element={<Unique/>}/>

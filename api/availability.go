@@ -60,12 +60,12 @@ type IntersectMediaCounts struct {
 	RightLibraryMediaCounts LibraryMediaCounts `json:"rightLibraryMediaCounts"`
 }
 
-var availabilityMap map[uint32]map[int]MediaCounts
-var libraryMediaMap map[int]map[uint32]MediaCounts
+var availabilityMap map[uint32]map[string]MediaCounts
+var libraryMediaMap map[string]map[uint32]MediaCounts
 
 func readAvailability() {
-	availabilityMap = make(map[uint32]map[int]MediaCounts)
-	libraryMediaMap = make(map[int]map[uint32]MediaCounts)
+	availabilityMap = make(map[uint32]map[string]MediaCounts)
+	libraryMediaMap = make(map[string]map[uint32]MediaCounts)
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/availability.csv.gz")
@@ -107,10 +107,7 @@ func readAvailability() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		websiteId, err := strconv.Atoi(record[1])
-		if err != nil {
-			log.Error().Err(err)
-		}
+		libraryId := record[1]
 		ownedCount, err := strconv.ParseUint(record[2], 10, 32)
 		if err != nil {
 			log.Error().Err(err)
@@ -128,7 +125,7 @@ func readAvailability() {
 			log.Error().Err(err)
 		}
 		if _, exists := availabilityMap[uint32(id)]; !exists {
-			availabilityMap[uint32(id)] = map[int]MediaCounts{}
+			availabilityMap[uint32(id)] = map[string]MediaCounts{}
 		}
 		estimatedWaitDays = estimatedWaitDays
 		if availableCount > holdsCount {
@@ -140,11 +137,11 @@ func readAvailability() {
 			HoldsCount:        uint32(holdsCount),
 			EstimatedWaitDays: int32(estimatedWaitDays),
 		}
-		availabilityMap[uint32(id)][websiteId] = mediaCounts
-		if _, exists := libraryMediaMap[websiteId]; !exists {
-			libraryMediaMap[websiteId] = map[uint32]MediaCounts{}
+		availabilityMap[uint32(id)][libraryId] = mediaCounts
+		if _, exists := libraryMediaMap[libraryId]; !exists {
+			libraryMediaMap[libraryId] = map[uint32]MediaCounts{}
 		}
-		libraryMediaMap[websiteId][uint32(id)] = mediaCounts
+		libraryMediaMap[libraryId][uint32(id)] = mediaCounts
 	}
 	log.Info().Msg("done reading availability")
 }
@@ -157,11 +154,11 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	media, _ := mediaMap.Get(uint32(id))
 	log.Info().Msgf("/api/availability media: %v", media)
-	results := []LibraryMediaCounts{}
-	for websiteId, counts := range availabilityMap[uint32(id)] {
-		library, exists := libraryMap[websiteId]
+	var results []LibraryMediaCounts
+	for libraryId, counts := range availabilityMap[uint32(id)] {
+		library, exists := libraryMap[libraryId]
 		if !exists {
-			log.Error().Msgf("library not found for website id %d", websiteId)
+			log.Error().Msgf("library not found for library id %s", libraryId)
 			continue
 		}
 		if library.Id == "uskindle" {
@@ -185,25 +182,17 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func diffHandler(w http.ResponseWriter, r *http.Request) {
-	leftWebsiteId, err := strconv.Atoi(r.URL.Query().Get("leftWebsiteId"))
-	if err != nil {
-		http.Error(w, "invalid leftWebsiteId", http.StatusBadRequest)
-		return
-	}
-	rightWebsiteId, err := strconv.Atoi(r.URL.Query().Get("rightWebsiteId"))
-	if err != nil {
-		http.Error(w, "invalid rightWebsiteId", http.StatusBadRequest)
-		return
-	}
-	leftLibrary, leftExists := libraryMap[leftWebsiteId]
-	rightLibrary, rightExists := libraryMap[rightWebsiteId]
+	leftLibraryId := r.URL.Query().Get("leftLibraryId")
+	rightLibraryId := r.URL.Query().Get("rightLibraryId")
+	leftLibrary, leftExists := libraryMap[leftLibraryId]
+	rightLibrary, rightExists := libraryMap[rightLibraryId]
 	if !leftExists || !rightExists {
-		http.Error(w, "invalid website id", http.StatusBadRequest)
+		http.Error(w, "invalid library id", http.StatusBadRequest)
 		return
 	}
 	log.Info().Msgf("/api/intersect left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
-	leftCounts := libraryMediaMap[leftLibrary.WebsiteId]
-	rightCounts := libraryMediaMap[rightLibrary.WebsiteId]
+	leftCounts := libraryMediaMap[leftLibraryId]
+	rightCounts := libraryMediaMap[rightLibraryId]
 	diff := []DiffMediaCounts{}
 	for id, leftCount := range leftCounts {
 		_, exists := rightCounts[id]
@@ -226,32 +215,24 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(diffResponse)
+	err := json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {
 		log.Error().Err(err)
 	}
 }
 
 func intersectHandler(w http.ResponseWriter, r *http.Request) {
-	leftWebsiteId, err := strconv.Atoi(r.URL.Query().Get("leftWebsiteId"))
-	if err != nil {
-		http.Error(w, "invalid leftWebsiteId", http.StatusBadRequest)
-		return
-	}
-	rightWebsiteId, err := strconv.Atoi(r.URL.Query().Get("rightWebsiteId"))
-	if err != nil {
-		http.Error(w, "invalid rightWebsiteId", http.StatusBadRequest)
-		return
-	}
-	leftLibrary, leftExists := libraryMap[leftWebsiteId]
-	rightLibrary, rightExists := libraryMap[rightWebsiteId]
+	leftLibraryId := r.URL.Query().Get("leftLibraryId")
+	rightLibraryId := r.URL.Query().Get("rightLibraryId")
+	leftLibrary, leftExists := libraryMap[leftLibraryId]
+	rightLibrary, rightExists := libraryMap[rightLibraryId]
 	if !leftExists || !rightExists {
-		http.Error(w, "invalid website id", http.StatusBadRequest)
+		http.Error(w, "invalid library id", http.StatusBadRequest)
 		return
 	}
 	log.Info().Msgf("/api/intersect left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
-	leftMedia := libraryMediaMap[leftLibrary.WebsiteId]
-	rightMedia := libraryMediaMap[rightLibrary.WebsiteId]
+	leftMedia := libraryMediaMap[leftLibraryId]
+	rightMedia := libraryMediaMap[rightLibraryId]
 	var intersect []IntersectMediaCounts
 	for id, leftCount := range leftMedia {
 		rightCount, exists := rightMedia[id]
@@ -273,25 +254,21 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(diffResponse)
+	err := json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {
 		log.Error().Err(err)
 	}
 }
 
 func uniqueHandler(w http.ResponseWriter, r *http.Request) {
-	websiteId, err := strconv.Atoi(r.URL.Query().Get("websiteId"))
-	if err != nil {
-		http.Error(w, "invalid website id", http.StatusBadRequest)
-		return
-	}
-	library, libraryExists := libraryMap[websiteId]
+	libraryId := r.URL.Query().Get("libraryId")
+	library, libraryExists := libraryMap[libraryId]
 	if !libraryExists {
-		http.Error(w, "invalid website id", http.StatusBadRequest)
+		http.Error(w, "invalid library id", http.StatusBadRequest)
 		return
 	}
 	log.Info().Msgf("/api/unique libraryId %s", library.Id)
-	media := libraryMediaMap[library.WebsiteId]
+	media := libraryMediaMap[libraryId]
 	var unique []UniqueMediaCounts
 	for id, count := range media {
 		if len(availabilityMap[id]) == 1 {
@@ -312,7 +289,7 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO paginate this
 	w.Header().Add("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(diffResponse)
+	err := json.NewEncoder(w).Encode(diffResponse)
 	if err != nil {
 		log.Error().Err(err)
 	}

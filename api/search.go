@@ -219,6 +219,8 @@ func (a ByCustomSearchSortOrder) Swap(i, j int) {
 }
 
 func (a ByCustomSearchSortOrder) Less(i, j int) bool {
+	//sortScoreI := longestCommonSubstring(a.query, a.results[i].SearchString) * 10
+	//sortScoreJ := longestCommonSubstring(a.query, a.results[j].SearchString) * 10
 	lcsI := longestCommonSubstring(a.query, a.results[i].SearchString)
 	lcsJ := longestCommonSubstring(a.query, a.results[j].SearchString)
 	if lcsI == lcsJ {
