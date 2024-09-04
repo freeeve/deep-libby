@@ -10,12 +10,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type MediaCreator struct {
@@ -202,4 +206,9 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 	wg.Add(1)
 	search.Index(builder.String(), mediaId, wg)
 	media.SearchString = strings.ToLower(builder.String())
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	normalized, _, err := transform.String(t, media.SearchString)
+	if err != nil {
+		media.SearchString = normalized
+	}
 }

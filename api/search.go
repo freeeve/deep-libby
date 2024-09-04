@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/RoaringBitmap/roaring"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 	"math/rand"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 type SearchIndex struct {
@@ -196,8 +199,12 @@ func getRune(s string, idx int) rune {
 }
 
 func getNgrams(s string) []string {
-	lower := strings.ToLower(s)
-	lower = norm.NFC.String(lower)
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	lower, _, err := transform.String(t, s)
+	lower = strings.ToLower(s)
+	if err != nil {
+		lower = strings.ToLower(s)
+	}
 	ngrams := make(map[string]struct{})
 	for i := 0; i < len(lower)-2; i++ {
 		trigram := lower[i : i+3]

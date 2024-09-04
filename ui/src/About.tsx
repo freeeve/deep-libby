@@ -21,6 +21,9 @@ export default function About() {
                     update your favorites to exclude the cards in the consortium you don't have. Note that data is still
                     being indexed for some of these libraries.
                 </li>
+                <li>Unicode normalization for better foreign language search (umlauts, accents, etc., can be searched
+                    with or without).
+                </li>
                 <li>Added better support for formats--now tracked at the per-library level, since I discovered that the
                     same media id doesn't mean it has the same formats everywhere. It appears to be somewhat regional,
                     kindle being excluded outside the US, for example.

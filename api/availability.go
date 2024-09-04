@@ -17,18 +17,18 @@ import (
 )
 
 type MediaCounts struct {
-	OwnedCount        uint32  `json:"ownedCount"`
-	AvailableCount    uint32  `json:"availableCount"`
+	OwnedCount        uint16  `json:"ownedCount"`
+	AvailableCount    uint16  `json:"availableCount"`
 	HoldsCount        uint16  `json:"holdsCount"`
-	EstimatedWaitDays int32   `json:"estimatedWaitDays"`
+	EstimatedWaitDays int16   `json:"estimatedWaitDays"`
 	Formats           []uint8 `json:"formats"`
 }
 
 type MediaCountResults struct {
-	OwnedCount        uint32   `json:"ownedCount"`
-	AvailableCount    uint32   `json:"availableCount"`
+	OwnedCount        uint16   `json:"ownedCount"`
+	AvailableCount    uint16   `json:"availableCount"`
 	HoldsCount        uint16   `json:"holdsCount"`
-	EstimatedWaitDays int32    `json:"estimatedWaitDays"`
+	EstimatedWaitDays int16    `json:"estimatedWaitDays"`
 	Formats           []string `json:"formats"`
 }
 
@@ -179,21 +179,29 @@ func readAvailability() {
 		}
 		if ownedCount > math.MaxUint16 {
 			log.Warn().Msgf("owned count %d is greater than max uint16", ownedCount)
+			ownedCount = math.MaxUint16
 		}
 		if availableCount > math.MaxUint16 {
 			log.Warn().Msgf("available count %d is greater than max uint16", availableCount)
+			availableCount = math.MaxUint16
 		}
 		if holdsCount > math.MaxUint16 {
 			log.Warn().Msgf("holds count %d is greater than max uint16", holdsCount)
+			holdsCount = math.MaxUint16
 		}
 		if estimatedWaitDays > math.MaxInt16 {
 			log.Warn().Msgf("estimated wait days %d is greater than max int16", estimatedWaitDays)
+			estimatedWaitDays = math.MaxInt16
+		}
+		if estimatedWaitDays < math.MinInt16 {
+			log.Warn().Msgf("estimated wait days %d is less than min int16", estimatedWaitDays)
+			estimatedWaitDays = math.MinInt16
 		}
 		mediaCounts := &MediaCounts{
-			OwnedCount:        uint32(ownedCount),
-			AvailableCount:    uint32(availableCount),
+			OwnedCount:        uint16(ownedCount),
+			AvailableCount:    uint16(availableCount),
 			HoldsCount:        uint16(holdsCount),
-			EstimatedWaitDays: int32(estimatedWaitDays),
+			EstimatedWaitDays: int16(estimatedWaitDays),
 			Formats:           formats,
 		}
 		availabilityMap[uint32(id)][libraryIdInt] = mediaCounts
