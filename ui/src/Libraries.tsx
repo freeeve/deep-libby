@@ -11,6 +11,7 @@ interface Library {
     websiteId: number;
     name: string;
     isConsortium: boolean;
+    isAdvantageAccount: boolean;
 }
 
 interface GridOptions {
@@ -28,7 +29,19 @@ export default function Libraries() {
     const [libraries, setLibraries] = useState<Library[]>([]);
     const columnDefs: ColDef[] = [
         {
-            headerName: 'Name', field: 'name',
+            headerName: 'Name (click opens libby)', field: 'name',
+            cellRenderer: (params: any) => {
+                if (libraries.length > 0) {
+                    return (
+                        <a href={`https://libbyapp.com/library/${params.data.id}/`}
+                           style={{cursor: 'pointer'}}>
+                            {params.value}
+                        </a>
+                    );
+                } else {
+                    return null; // or some default JSX
+                }
+            }
         },
         {
             headerName: 'Is Consortium?', field: 'isConsortium'
@@ -63,23 +76,7 @@ export default function Libraries() {
                     return null; // or some default JSX
                 }
             }
-        },
-        {
-            headerName: 'Open In Libby',
-            field: 'libraryId',
-            cellRenderer: (params: any) => {
-                if (libraries.length > 0) {
-                    return (
-                        <a href={`https://libbyapp.com/library/${params.data.id}/`}
-                           style={{cursor: 'pointer'}}>
-                            open library in libby
-                        </a>
-                    );
-                } else {
-                    return null; // or some default JSX
-                }
-            }
-        },
+        }
     ];
 
     const libraryOptions = () => {

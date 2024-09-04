@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/RoaringBitmap/roaring"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/unicode/norm"
 	"math/rand"
 	"net/http"
 	"sort"
@@ -100,20 +101,27 @@ func (s *SearchIndex) Index(name string, id uint64, group *sync.WaitGroup) {
 	name = strings.TrimSpace(name)
 	trigrams := getNgrams(name)
 	for _, trigram := range trigrams {
-		queue, ok := ngramIDQueues.Load(trigram)
-		if !ok {
-			queue = make(chan uint32, 1000)
-			ngramIDQueues.Store(trigram, queue)
-			bitmap, exists := s.Get(trigram)
-			if !exists {
-				bitmap = NewConcurrentBitmap()
-				s.Set(trigram, bitmap)
-			}
-			go func() {
-				bitmapWorker(queue.(chan uint32), bitmap, trigram)
-			}()
+		bitmap, exists := s.Get(trigram)
+		if !exists {
+			bitmap = NewConcurrentBitmap()
+			s.Set(trigram, bitmap)
 		}
-		queue.(chan uint32) <- uint32(id)
+		bitmap.Add(uint32(id))
+		/*
+			queue, ok := ngramIDQueues.Load(trigram)
+			if !ok {
+				queue = make(chan uint32, 200)
+				ngramIDQueues.Store(trigram, queue)
+				bitmap, exists := s.Get(trigram)
+				if !exists {
+					bitmap = NewConcurrentBitmap()
+					s.Set(trigram, bitmap)
+				}
+				go bitmapWorker(queue.(chan uint32), bitmap, trigram)
+
+			}
+			queue.(chan uint32) <- uint32(id)
+		*/
 	}
 	group.Done()
 }
@@ -189,6 +197,7 @@ func getRune(s string, idx int) rune {
 
 func getNgrams(s string) []string {
 	lower := strings.ToLower(s)
+	lower = norm.NFC.String(lower)
 	ngrams := make(map[string]struct{})
 	for i := 0; i < len(lower)-2; i++ {
 		trigram := lower[i : i+3]

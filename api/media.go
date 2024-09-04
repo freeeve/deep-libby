@@ -39,31 +39,6 @@ type Media struct {
 	SeriesReadOrder int            `json:"seriesReadOrder"`
 	SearchString    string         `json:"searchString"`
 }
-type ConcurrentMediaSlice struct {
-	sync.RWMutex
-	slice []*Media
-}
-
-func (cms *ConcurrentMediaSlice) Add(media *Media) {
-	cms.Lock()
-	defer cms.Unlock()
-	cms.slice = append(cms.slice, media)
-}
-
-func (cms *ConcurrentMediaSlice) Get(index int) (*Media, bool) {
-	cms.RLock()
-	defer cms.RUnlock()
-	if index < 0 || index >= len(cms.slice) {
-		return nil, false
-	}
-	return cms.slice[index], true
-}
-
-func (cms *ConcurrentMediaSlice) Len() int {
-	cms.RLock()
-	defer cms.RUnlock()
-	return len(cms.slice)
-}
 
 var mediaMap *MediaMap
 
@@ -99,6 +74,7 @@ func readMedia() {
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/media.csv.gz")
+		defer f.Close()
 		if err != nil {
 			log.Error().Err(err)
 		}
@@ -145,6 +121,7 @@ func readMedia() {
 		}
 	}
 	wg.Wait()
+	gzr.Close()
 	search.Finalize()
 	// TODO probably do this a better way
 	dataLoaded = true
@@ -189,7 +166,7 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 		}
 		bitmap.(*ConcurrentBitmap).Add(uint32(mediaId))
 		wg.Add(1)
-		go search.Index(strings.ToLower(language), mediaId, wg)
+		search.Index(strings.ToLower(language), mediaId, wg)
 	}
 	for _, format := range formats {
 		bitmap, bitmapExists := formatMap.Load(strings.ToLower(format))
@@ -201,7 +178,7 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 		}
 		bitmap.(*ConcurrentBitmap).Add(uint32(mediaId))
 		wg.Add(1)
-		go search.Index(strings.ToLower(format), mediaId, wg)
+		search.Index(strings.ToLower(format), mediaId, wg)
 	}
 
 	for _, creator := range creators {
@@ -217,6 +194,6 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 		builder.WriteString(" ")
 	}
 	wg.Add(1)
-	go search.Index(builder.String(), mediaId, wg)
+	search.Index(builder.String(), mediaId, wg)
 	media.SearchString = strings.ToLower(builder.String())
 }

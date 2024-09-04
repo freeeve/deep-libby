@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/NYTimes/gziphandler"
-	"github.com/RoaringBitmap/roaring"
 	"github.com/allegro/bigcache"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -16,7 +15,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -34,6 +35,11 @@ const port = "443"
 var dataLoaded = false
 
 func main() {
+	/*
+		go func() {
+			fmt.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	*/
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
 		log.Logger = log.Level(zerolog.DebugLevel)
@@ -43,7 +49,7 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
-	go readLibraries()
+	readLibraries()
 	go readAvailability()
 	// this is the slowest one, let it block the server start
 	go readMedia()
@@ -113,27 +119,34 @@ func memoryHandler(writer http.ResponseWriter, request *http.Request) {
 	log.Info().Msgf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
 	sum := uint64(0)
 	formatMap.Range(func(key, value interface{}) bool {
-		log.Info().Msgf("memory usage of formatMap[%s]: %d bytes\n", key, value.(*roaring.Bitmap).GetSizeInBytes())
-		sum += value.(*roaring.Bitmap).GetSizeInBytes()
+		size := value.(*ConcurrentBitmap).UnsafeBitmap().GetSizeInBytes()
+		if size > 1024*1024 {
+			log.Info().Msgf("memory usage of formatMap[%s]: %d bytes\n", key, size)
+		}
+		sum += size
 		return true
 	})
 	log.Info().Msgf("Memory usage of formatMap values: %d bytes\n", sum)
 	sum = 0
 	languageMap.Range(func(key, value interface{}) bool {
-		log.Info().Msgf("memory usage of languageMap[%s]: %d bytes\n", key, value.(*roaring.Bitmap).GetSizeInBytes())
-		sum += value.(*roaring.Bitmap).GetSizeInBytes()
+		size := value.(*ConcurrentBitmap).UnsafeBitmap().GetSizeInBytes()
+		if size > 128*1024 {
+			log.Info().Msgf("memory usage of languageMap[%s]: %d bytes\n", key, size)
+		}
+		sum += size
 		return true
 	})
 	log.Info().Msgf("Memory usage of languageMap values: %d bytes\n", sum)
 	sum = 0
 	for trigram, bitmap := range search.trigramMap {
 		size := bitmap.UnsafeBitmap().GetSizeInBytes()
-		if size > 1024 {
+		if size > 1024*1024 {
 			log.Info().Msgf("memory usage of trigram[%s]: %d bytes\n", trigram, size)
 		}
-		sum += bitmap.UnsafeBitmap().GetSizeInBytes()
+		sum += size
 	}
 	log.Info().Msgf("Memory usage (total) of search index: %d bytes\n", int(sum)+calculateMemoryUsage(search.trigramMap))
+	runtime.GC()
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {

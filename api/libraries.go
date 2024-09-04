@@ -15,23 +15,27 @@ import (
 )
 
 type Library struct {
-	Id           string `json:"id"`
-	WebsiteId    int    `json:"websiteId"`
-	Name         string `json:"name"`
-	IsConsortium bool   `json:"isConsortium"`
+	Id                 string `json:"id"`
+	WebsiteId          int    `json:"websiteId"`
+	Name               string `json:"name"`
+	IsConsortium       bool   `json:"isConsortium"`
+	IsAdvantageAccount bool   `json:"isAdvantageAccount"`
 }
 
 type LibraryResponse struct {
 	Libraries []Library `json:"libraries"`
 }
 
-var libraryMap map[string]Library
+var libraryIdMap map[string]uint16
+var libraryMap map[uint16]Library
 
 func readLibraries() {
-	libraryMap = make(map[string]Library)
+	libraryMap = make(map[uint16]Library)
+	libraryIdMap = make(map[string]uint16)
 	var gzr *gzip.Reader
 	if os.Getenv("LOCAL_TESTING") == "true" {
 		f, err := os.Open("../../librarylibrary/libraries.csv.gz")
+		defer f.Close()
 		if err != nil {
 			log.Error().Err(err)
 		}
@@ -70,13 +74,21 @@ func readLibraries() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		libraryMap[record[0]] = Library{
-			Id:           record[0],
-			WebsiteId:    websiteId,
-			Name:         record[2],
-			IsConsortium: record[3] == "true",
+		libraryId := record[0]
+		libraryIdInt, exists := libraryIdMap[libraryId]
+		if !exists {
+			libraryIdInt = uint16(len(libraryIdMap))
+			libraryIdMap[libraryId] = libraryIdInt
+		}
+		libraryMap[libraryIdInt] = Library{
+			Id:                 record[0],
+			WebsiteId:          websiteId,
+			Name:               record[2],
+			IsConsortium:       record[3] == "true",
+			IsAdvantageAccount: record[4] == "true",
 		}
 	}
+	gzr.Close()
 	log.Info().Msg("done reading libraries")
 }
 
