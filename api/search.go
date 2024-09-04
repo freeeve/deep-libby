@@ -201,10 +201,10 @@ func getRune(s string, idx int) rune {
 func getNgrams(s string) []string {
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	lower, _, err := transform.String(t, s)
-	lower = strings.ToLower(s)
 	if err != nil {
-		lower = strings.ToLower(s)
+		lower = s
 	}
+	lower = strings.ToLower(lower)
 	ngrams := make(map[string]struct{})
 	for i := 0; i < len(lower)-2; i++ {
 		trigram := lower[i : i+3]

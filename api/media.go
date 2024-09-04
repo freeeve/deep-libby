@@ -204,11 +204,11 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 		builder.WriteString(" ")
 	}
 	wg.Add(1)
-	search.Index(builder.String(), mediaId, wg)
 	media.SearchString = strings.ToLower(builder.String())
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	normalized, _, err := transform.String(t, media.SearchString)
-	if err != nil {
+	if err == nil {
 		media.SearchString = normalized
 	}
+	search.Index(media.SearchString, mediaId, wg)
 }
