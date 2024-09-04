@@ -7,6 +7,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/NYTimes/gziphandler"
+	"github.com/RoaringBitmap/roaring"
 	"github.com/allegro/bigcache"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -16,10 +17,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 type UiStatic struct {
@@ -62,6 +61,7 @@ func main() {
 	apiServeMux.Handle("GET /api/intersect", gziphandler.GzipHandler(http.HandlerFunc(intersectHandler)))
 	apiServeMux.Handle("GET /api/unique", gziphandler.GzipHandler(http.HandlerFunc(uniqueHandler)))
 	apiServeMux.Handle("GET /api/memory", gziphandler.GzipHandler(http.HandlerFunc(memoryHandler)))
+	apiServeMux.Handle("GET /api/search-debug", gziphandler.GzipHandler(http.HandlerFunc(searchDebugHandler)))
 
 	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
@@ -99,24 +99,41 @@ func main() {
 	}
 }
 
-func calculateMemoryUsage(m interface{}) uint64 {
-	var size uintptr
-
-	v := reflect.ValueOf(m)
-	if v.Kind() == reflect.Map {
-		for _, key := range v.MapKeys() {
-			size += (unsafe.Sizeof(key.Interface()) + unsafe.Sizeof(v.MapIndex(key).Interface()))
-		}
+func calculateMemoryUsage(v interface{}) int {
+	b := new(bytes.Buffer)
+	if err := gob.NewEncoder(b).Encode(v); err != nil {
+		return 0
 	}
-
-	return uint64(size)
+	return b.Len()
 }
 
 func memoryHandler(writer http.ResponseWriter, request *http.Request) {
-	fmt.Printf("Memory usage of mediaMap: %d bytes\n", calculateMemoryUsage(mediaMap))
-	fmt.Printf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
-	fmt.Printf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
-	fmt.Printf("Memory usage of search index: %d bytes\n", calculateMemoryUsage(search.trigramMap))
+	log.Info().Msgf("Memory usage of mediaMap: %d bytes\n", calculateMemoryUsage(mediaMap.m))
+	log.Info().Msgf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
+	log.Info().Msgf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
+	sum := uint64(0)
+	formatMap.Range(func(key, value interface{}) bool {
+		log.Info().Msgf("memory usage of formatMap[%s]: %d bytes\n", key, value.(*roaring.Bitmap).GetSizeInBytes())
+		sum += value.(*roaring.Bitmap).GetSizeInBytes()
+		return true
+	})
+	log.Info().Msgf("Memory usage of formatMap values: %d bytes\n", sum)
+	sum = 0
+	languageMap.Range(func(key, value interface{}) bool {
+		log.Info().Msgf("memory usage of languageMap[%s]: %d bytes\n", key, value.(*roaring.Bitmap).GetSizeInBytes())
+		sum += value.(*roaring.Bitmap).GetSizeInBytes()
+		return true
+	})
+	log.Info().Msgf("Memory usage of languageMap values: %d bytes\n", sum)
+	sum = 0
+	for trigram, bitmap := range search.trigramMap {
+		size := bitmap.UnsafeBitmap().GetSizeInBytes()
+		if size > 1024 {
+			log.Info().Msgf("memory usage of trigram[%s]: %d bytes\n", trigram, size)
+		}
+		sum += bitmap.UnsafeBitmap().GetSizeInBytes()
+	}
+	log.Info().Msgf("Memory usage (total) of search index: %d bytes\n", int(sum)+calculateMemoryUsage(search.trigramMap))
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,9 +1,10 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {AgGridReact} from "ag-grid-react";
 
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
+import SearchMedia from "./SearchMedia.tsx";
 
 interface Library {
     id: string;
@@ -34,19 +35,25 @@ export default function Libraries() {
         },
         {
             headerName: 'Favorites',
-            field: 'favorite',
+            field: 'favdummy',
+            valueGetter: (params: any) => {
+                const isFavorite = getFavorites().includes(params.data.id) ? 'Favorite' : 'Not Favorite';
+                console.log('isFavorite:', isFavorite);
+                return isFavorite;
+            },
+            filter: false,
             cellRenderer: (params: any) => {
                 if (libraries.length > 0) {
-                    if (getFavorites().includes(params.data.websiteId)) {
+                    if (getFavorites().includes(params.data.id)) {
                         return (
-                            <a onClick={() => removeFromFavorites(params.data.websiteId)}
+                            <a onClick={() => removeFromFavorites(params.data.id)}
                                style={{cursor: 'pointer'}}>
                                 remove from favorites
                             </a>
                         );
                     } else {
                         return (
-                            <a onClick={() => addToFavorites(params.data.websiteId)}
+                            <a onClick={() => addToFavorites(params.data.id)}
                                style={{cursor: 'pointer'}}>
                                 add to favorites
                             </a>
@@ -90,26 +97,46 @@ export default function Libraries() {
             });
     };
 
+    useEffect(() => {
+        getFavorites();
+    }, [libraries]);
+
     const getFavorites = () => {
-        return JSON.parse(localStorage.getItem('favorites') || '[]');
+        // let startTime = new Date().getTime();
+        let favorites = JSON.parse(localStorage.getItem('favoriteIds') || '[]');
+        let oldFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+        if (favorites.length == 0 && oldFavorites.length > 0 && libraries.length > 0) {
+            // console.log('oldFavorites', oldFavorites, 'favorites', favorites);
+            oldFavorites.forEach((favWebsiteId: number) => {
+                libraries
+                    .filter((l: Library) => l.websiteId === favWebsiteId)
+                    .forEach((library: Library) => {
+                        console.log('adding favorite', library.id, 'for websiteId', library.websiteId);
+                        favorites.push(library.id);
+                    });
+            });
+        }
+        localStorage.setItem('favoriteIds', JSON.stringify(favorites));
+        // console.log('getFavorites took', new Date().getTime() - startTime, 'ms');
+        return favorites;
     }
 
-    const addToFavorites = (websiteId: number) => {
+    const addToFavorites = (libraryId: string) => {
         let favorites = getFavorites();
-        if (favorites.includes(websiteId)) {
+        if (favorites.includes(libraryId)) {
             return;
         }
-        favorites.push(websiteId);
-        localStorage.setItem('favorites', JSON.stringify(favorites));
+        favorites.push(libraryId);
+        localStorage.setItem('favoriteIds', JSON.stringify(favorites));
         if (gridOptions && gridOptions.api) {
             gridOptions.api.redrawRows(); // Redraw the rows
         }
     }
 
-    const removeFromFavorites = (websiteId: number) => {
+    const removeFromFavorites = (libraryId: string) => {
         let favorites = getFavorites();
-        favorites = favorites.filter((f: number) => f !== websiteId);
-        localStorage.setItem('favorites', JSON.stringify(favorites));
+        favorites = favorites.filter((f: string) => f !== libraryId);
+        localStorage.setItem('favoriteIds', JSON.stringify(favorites));
         if (gridOptions && gridOptions.api) {
             gridOptions.api.redrawRows(); // Redraw the rows
         }
@@ -125,6 +152,7 @@ export default function Libraries() {
 
     return (
         <div>
+            <SearchMedia></SearchMedia>
             <h2>Favorite Libraries</h2>
             <div>
                 {libraries.length && (

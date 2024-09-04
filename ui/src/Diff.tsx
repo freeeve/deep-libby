@@ -6,6 +6,7 @@ import {AgGridReact} from "ag-grid-react";
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
+import SearchMedia from "./SearchMedia.tsx";
 
 interface DiffResponse {
     diff: SelectedMedia[];
@@ -55,7 +56,22 @@ export default function Diff() {
     const [filteredRowCount, setFilteredRowCount] = useState(0);
     const [diffResponse, setDiffResponse] = useState<DiffResponse>({diff: []});
     const columnDefs: ColDef[] = [
-        {headerName: 'Title', field: 'title', minWidth: 250, sort: 'asc'},
+        {
+            headerName: 'Title (click opens libby)', field: 'title', minWidth: 250, sort: 'asc',
+            cellRenderer:
+                (params: any) => {
+                    if (diffResponse.diff.length > 0) {
+                        return (
+                            <a href={`https://libbyapp.com/library/${params.data.library.id}/generated-36532/page-1/${params.data.id}`}
+                               style={{cursor: 'pointer'}}>
+                                {params.value}
+                            </a>
+                        );
+                    } else {
+                        return null; // or some default JSX
+                    }
+                }
+        },
         {
             headerName: 'Creators', field: 'creators',
             valueFormatter: (params) => {
@@ -89,24 +105,6 @@ export default function Diff() {
             headerName: 'Holds',
             field: 'holdsCount',
             width: 110
-        },
-        {
-            headerName: 'Open In Libby',
-            field:
-                'library.id',
-            cellRenderer:
-                (params: any) => {
-                    if (diffResponse.diff.length > 0) {
-                        return (
-                            <a href={`https://libbyapp.com/library/${params.data.library.id}/generated-36532/page-1/${params.data.id}`}
-                               style={{cursor: 'pointer'}}>
-                                open in left library
-                            </a>
-                        );
-                    } else {
-                        return null; // or some default JSX
-                    }
-                }
         }
     ];
 
@@ -183,6 +181,7 @@ export default function Diff() {
 
     return (
         <div>
+            <SearchMedia></SearchMedia>
             <h2>Library Difference</h2>
             <svg width="250" height="180">
                 <circle fill="#000" cx="100" cy="90" r="70" stroke="#666" strokeWidth="5"/>

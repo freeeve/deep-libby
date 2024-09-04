@@ -12,13 +12,15 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type MediaCounts struct {
-	OwnedCount        uint32 `json:"ownedCount"`
-	AvailableCount    uint32 `json:"availableCount"`
-	HoldsCount        uint32 `json:"holdsCount"`
-	EstimatedWaitDays int32  `json:"estimatedWaitDays"`
+	OwnedCount        uint32   `json:"ownedCount"`
+	AvailableCount    uint32   `json:"availableCount"`
+	HoldsCount        uint32   `json:"holdsCount"`
+	EstimatedWaitDays int32    `json:"estimatedWaitDays"`
+	Formats           []string `json:"formats"`
 }
 
 type LibraryMediaCounts struct {
@@ -27,7 +29,7 @@ type LibraryMediaCounts struct {
 }
 
 type AvailabilityResponse struct {
-	*Media
+	*SearchResult
 	Availability []LibraryMediaCounts `json:"availability"`
 }
 
@@ -36,7 +38,7 @@ type DiffResponse struct {
 }
 
 type DiffMediaCounts struct {
-	*Media
+	*SearchResult
 	LibraryMediaCounts
 }
 
@@ -46,7 +48,7 @@ type UniqueResponse struct {
 }
 
 type UniqueMediaCounts struct {
-	*Media
+	*SearchResult
 	MediaCounts
 }
 
@@ -55,7 +57,7 @@ type IntersectResponse struct {
 }
 
 type IntersectMediaCounts struct {
-	*Media
+	*SearchResult
 	LeftLibraryMediaCounts  LibraryMediaCounts `json:"leftLibraryMediaCounts"`
 	RightLibraryMediaCounts LibraryMediaCounts `json:"rightLibraryMediaCounts"`
 }
@@ -131,11 +133,19 @@ func readAvailability() {
 		if availableCount > holdsCount {
 			estimatedWaitDays = 0
 		}
+		formats := []string{}
+		if record[6] != "" {
+			splitFormats := strings.Split(record[6], ";")
+			for _, format := range splitFormats {
+				formats = append(formats, format)
+			}
+		}
 		mediaCounts := MediaCounts{
 			OwnedCount:        uint32(ownedCount),
 			AvailableCount:    uint32(availableCount),
 			HoldsCount:        uint32(holdsCount),
 			EstimatedWaitDays: int32(estimatedWaitDays),
+			Formats:           formats,
 		}
 		availabilityMap[uint32(id)][libraryId] = mediaCounts
 		if _, exists := libraryMediaMap[libraryId]; !exists {
@@ -169,9 +179,8 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 			MediaCounts: counts,
 		})
 	}
-	media.LibraryCount = len(availabilityMap[uint32(id)])
 	availability := AvailabilityResponse{
-		Media:        media,
+		SearchResult: NewSearchResult(media),
 		Availability: results,
 	}
 	w.Header().Add("Content-Type", "application/json")
@@ -199,7 +208,7 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 		if !exists {
 			mediaRecord, _ := mediaMap.Get(id)
 			diff = append(diff, DiffMediaCounts{
-				Media: mediaRecord,
+				SearchResult: NewSearchResult(mediaRecord),
 				LibraryMediaCounts: LibraryMediaCounts{
 					Library:     leftLibrary,
 					MediaCounts: leftCount,
@@ -239,7 +248,7 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 		if exists {
 			media, _ := mediaMap.Get(id)
 			intersect = append(intersect, IntersectMediaCounts{
-				Media:                   media,
+				SearchResult:            NewSearchResult(media),
 				LeftLibraryMediaCounts:  LibraryMediaCounts{leftLibrary, leftCount},
 				RightLibraryMediaCounts: LibraryMediaCounts{rightLibrary, rightCount},
 			})
@@ -274,8 +283,8 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 		if len(availabilityMap[id]) == 1 {
 			mediaRecord, _ := mediaMap.Get(id)
 			unique = append(unique, UniqueMediaCounts{
-				Media:       mediaRecord,
-				MediaCounts: count,
+				SearchResult: NewSearchResult(mediaRecord),
+				MediaCounts:  count,
 			})
 		}
 	}

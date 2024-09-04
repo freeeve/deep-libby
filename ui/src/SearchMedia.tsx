@@ -14,7 +14,11 @@ interface SearchMedia {
     libraryCount: number;
 }
 
-export default function SearchMedia() {
+interface SearchMediaProps {
+    clickMedia?: Function;
+}
+
+export default function SearchMedia({clickMedia}: SearchMediaProps) {
     const [width, setWidth] = useState<number>(window.innerWidth);
     let debounceTimeoutId: any | null = null;
     let searchComponent: null | JSX.Element;
@@ -35,7 +39,6 @@ export default function SearchMedia() {
     if (baseUrl === 'http://localhost:5173') {
         baseUrl = 'http://localhost:8080';
     }
-    const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({results: []});
     const navigate = useNavigate(); // Get the history object
     const abortControllerRef = useRef(new AbortController());
@@ -58,7 +61,6 @@ export default function SearchMedia() {
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 
         console.log("handleInputChange " + event.target.value);
-        setSearchTerm(event.target.value);
         // Abort any pending requests
         if (abortControllerRef.current) {
             console.log("aborting from handleInputChange");
@@ -91,17 +93,28 @@ export default function SearchMedia() {
         }, isMobile ? 700 : 50);
     };
 
+    if (clickMedia === undefined) {
+        clickMedia = (selectedOption: any) => {
+            console.log("default handler, ", selectedOption);
+        };
+    }
+
     const Row = (index: number) => {
         const result: SearchMedia = data.results[index];
         return (
-            <div onClick={() => navigate('/availability/' + result.id)}
-                 style={{
-                     backgroundColor: index % 2 === 0 ? '#333' : '#444',
-                     display: 'flex',
-                     justifyContent: 'space-between',
-                     padding: isMobile ? 4 : 0,
-                     cursor: 'pointer',
-                 }}>
+            <div
+                onClick={() => {
+                    navigate('/availability/' + result.id);
+                    clickMedia({id: result.id}, []);
+                    data.results = [];
+                }}
+                style={{
+                    backgroundColor: index % 2 === 0 ? '#333' : '#444',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: isMobile ? 4 : 0,
+                    cursor: 'pointer',
+                }}>
                 <div style={{textAlign: 'left', width: isMobile ? '60%' : '70%'}}>
                     <div><strong>{result.title}{result.seriesName !== "" &&
                         <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong></div>
@@ -148,7 +161,6 @@ export default function SearchMedia() {
                     </span>
             </div>
             <input type="text"
-                   value={searchTerm}
                    placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}
@@ -198,8 +210,8 @@ export default function SearchMedia() {
 
 
     return (
-        <main>
+        <div>
             {searchComponent}
-        </main>
+        </div>
     );
 }

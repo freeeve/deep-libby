@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/RoaringBitmap/roaring"
 	"github.com/rs/zerolog/log"
+	"math/rand"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +17,21 @@ import (
 type SearchIndex struct {
 	sync.RWMutex
 	trigramMap map[string]*ConcurrentBitmap
+}
+
+type SearchResult struct {
+	Id              uint64         `json:"id"`
+	Title           string         `json:"title"`
+	Creators        []MediaCreator `json:"creators"`
+	CoverUrl        string         `json:"coverUrl"`
+	Subtitle        string         `json:"subtitle"`
+	Description     string         `json:"description"`
+	SeriesName      string         `json:"seriesName"`
+	SeriesReadOrder int            `json:"seriesReadOrder"`
+	SearchString    string         `json:"searchString"`
+	LibraryCount    int            `json:"libraryCount"`
+	Languages       []string       `json:"languages"`
+	Formats         []string       `json:"formats"`
 }
 
 var search = NewSearchIndex()
@@ -69,7 +86,17 @@ func (cb *ConcurrentBitmap) ToArray() []uint32 {
 	return cb.bitmap.ToArray()
 }
 
-func (s *SearchIndex) Index(name string, id uint64) {
+func (cb *ConcurrentBitmap) Contains(id uint32) bool {
+	cb.RLock()
+	defer cb.RUnlock()
+	return cb.bitmap.Contains(id)
+}
+
+func (cb *ConcurrentBitmap) UnsafeBitmap() *roaring.Bitmap {
+	return cb.bitmap
+}
+
+func (s *SearchIndex) Index(name string, id uint64, group *sync.WaitGroup) {
 	name = strings.TrimSpace(name)
 	trigrams := getNgrams(name)
 	for _, trigram := range trigrams {
@@ -82,16 +109,24 @@ func (s *SearchIndex) Index(name string, id uint64) {
 				bitmap = NewConcurrentBitmap()
 				s.Set(trigram, bitmap)
 			}
-			go bitmapWorker(queue.(chan uint32), bitmap)
+			go func() {
+				bitmapWorker(queue.(chan uint32), bitmap, trigram)
+			}()
 		}
 		queue.(chan uint32) <- uint32(id)
 	}
+	group.Done()
 }
 
-func bitmapWorker(queue chan uint32, bitmap *ConcurrentBitmap) {
+func bitmapWorker(queue chan uint32, bitmap *ConcurrentBitmap, ngram string) {
+	log.Trace().Msgf("bitmapWorker starting for... %s", ngram)
+	var count int
 	for id := range queue {
 		bitmap.Add(id)
+		count++
 	}
+	time.Sleep(time.Duration(rand.Int()) * time.Millisecond)
+	log.Trace().Msgf("bitmapWorker done for... %s; count: %d", ngram, count)
 }
 
 func (s *SearchIndex) Search(query string) []uint32 {
@@ -119,6 +154,37 @@ func (s *SearchIndex) Search(query string) []uint32 {
 		return []uint32{}
 	}
 	return results.ToArray()
+}
+
+func (s *SearchIndex) Finalize() {
+	ngramIDQueues.Range(func(key, value interface{}) bool {
+		close(value.(chan uint32))
+		return true
+	})
+}
+
+func substring(s string, start int, end int) string {
+	start_str_idx := 0
+	i := 0
+	for j := range s {
+		if i == start {
+			start_str_idx = j
+		}
+		if i == end {
+			return s[start_str_idx:j]
+		}
+		i++
+	}
+	return s[start_str_idx:]
+}
+
+func getRune(s string, idx int) rune {
+	for j, r := range s {
+		if j == idx {
+			return r
+		}
+	}
+	return ' '
 }
 
 func getNgrams(s string) []string {
@@ -152,23 +218,56 @@ func getNgrams(s string) []string {
 	return uniqueNgrams
 }
 
+func NewSearchResult(media *Media) *SearchResult {
+	var formats []string
+	var languages []string
+	formatMap.Range(func(format, bitmap interface{}) bool {
+		if bitmap.(*ConcurrentBitmap).Contains(uint32(media.Id)) {
+			formats = append(formats, format.(string))
+		}
+		return true
+	})
+	languageMap.Range(func(language, bitmap interface{}) bool {
+		if bitmap.(*ConcurrentBitmap).Contains(uint32(media.Id)) {
+			languages = append(languages, language.(string))
+		}
+		return true
+	})
+	sort.Strings(formats)
+	sort.Strings(languages)
+	return &SearchResult{
+		Id:              media.Id,
+		Title:           media.Title,
+		Creators:        media.Creators,
+		CoverUrl:        media.CoverUrl,
+		Subtitle:        media.Subtitle,
+		Description:     media.Description,
+		SeriesName:      media.SeriesName,
+		SeriesReadOrder: media.SeriesReadOrder,
+		SearchString:    media.SearchString,
+		LibraryCount:    len(availabilityMap[uint32(media.Id)]),
+		Languages:       languages,
+		Formats:         formats,
+	}
+}
+
 func searchHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	lowerQuery := strings.ToLower(query)
 	log.Debug().Msgf("/api/search q: %v", query)
 	startTime := time.Now()
-	var results []*Media
+	var results []*SearchResult
 	ids := search.Search(query)
 	for _, id := range ids {
 		media, _ := mediaMap.Get(id)
-		media.LibraryCount = len(availabilityMap[id])
-		results = append(results, media)
+		searchResult := NewSearchResult(media)
+		results = append(results, searchResult)
 		if len(results) >= 500 {
 			break
 		}
 	}
 	// TODO paginate this better
-	result := map[string][]*Media{}
+	result := map[string][]*SearchResult{}
 	sort.Sort(ByCustomSearchSortOrder{query: lowerQuery, results: results})
 	result["results"] = results
 	w.Header().Add("Content-Type", "application/json")
@@ -180,6 +279,34 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		Str("duration", fmt.Sprintf("%dms", time.Since(startTime)/time.Millisecond)).
 		Msgf("/api/search q: %v", query)
 }
+
+func searchDebugHandler(w http.ResponseWriter, r *http.Request) {
+	ngram := r.URL.Query().Get("ngram")
+	mediaId := r.URL.Query().Get("mediaId")
+	mediaIdInt, err := strconv.Atoi(mediaId)
+	if err != nil {
+		panic(err)
+	}
+	log.Debug().Msgf("/api/search-debug: ngram %v, mediaId %v", ngram, mediaId)
+	result := map[string]bool{}
+	bitmap, exists := search.Get(ngram)
+	if !exists {
+		result["ngramBitmapExists"] = false
+		w.Header().Add("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(result)
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
+	result["mediaSetForNgram"] = bitmap.Contains(uint32(mediaIdInt))
+	w.Header().Add("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(result)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func longestCommonSubstring(a, b string) int {
 	log.Debug().Str("a", a).Str("b", b).Msg("longestCommonSubstring...")
 	dp := make([][]int, len(a)+1)
@@ -207,7 +334,7 @@ func longestCommonSubstring(a, b string) int {
 
 type ByCustomSearchSortOrder struct {
 	query   string
-	results []*Media
+	results []*SearchResult
 }
 
 func (a ByCustomSearchSortOrder) Len() int {
@@ -219,27 +346,9 @@ func (a ByCustomSearchSortOrder) Swap(i, j int) {
 }
 
 func (a ByCustomSearchSortOrder) Less(i, j int) bool {
-	//sortScoreI := longestCommonSubstring(a.query, a.results[i].SearchString) * 10
-	//sortScoreJ := longestCommonSubstring(a.query, a.results[j].SearchString) * 10
 	lcsI := longestCommonSubstring(a.query, a.results[i].SearchString)
 	lcsJ := longestCommonSubstring(a.query, a.results[j].SearchString)
 	if lcsI == lcsJ {
-		if a.results[i].SeriesName != a.results[j].SeriesName {
-			log.Debug().
-				Any("i.Id", a.results[i].Id).Any("j.Id", a.results[j].Id).
-				Str("a.results[i].SeriesName", a.results[i].SeriesName).
-				Str("a.results[j].SeriesName", a.results[j].SeriesName).
-				Msg("SeriesName...")
-			return a.results[i].SeriesName < a.results[j].SeriesName
-		}
-		if a.results[i].SeriesReadOrder != a.results[j].SeriesReadOrder {
-			log.Debug().
-				Any("i.Id", a.results[i].Id).Any("j.Id", a.results[j].Id).
-				Int("a.results[i].SeriesReadOrder", a.results[i].SeriesReadOrder).
-				Int("a.results[j].SeriesReadOrder", a.results[j].SeriesReadOrder).
-				Msg("readOrder...")
-			return a.results[i].SeriesReadOrder < a.results[j].SeriesReadOrder
-		}
 		log.Debug().
 			Any("i.Id", a.results[i].Id).Any("j.Id", a.results[j].Id).
 			Int("a.results[i].LibraryCount", a.results[i].LibraryCount).

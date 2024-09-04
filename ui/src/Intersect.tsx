@@ -6,6 +6,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
 import AsyncSelect from "react-select";
+import SearchMedia from "./SearchMedia.tsx";
 
 interface IntersectResponse {
     intersect: SelectedMedia[];
@@ -61,7 +62,7 @@ export default function Intersect() {
     const [libraries, setLibraries] = useState<LibraryOption[]>([]);
     const [intersectResponse, setIntersectResponse] = useState<IntersectResponse>({intersect: []});
     const columnDefs: ColDef[] = [
-        {headerName: 'Book Title', field: 'title', minWidth: 250, sort: 'asc'},
+        {headerName: 'Title', field: 'title', minWidth: 250, sort: 'asc'},
         {
             headerName: 'Creator Names', field: 'creators',
             valueFormatter: (params: any) => {
@@ -215,6 +216,7 @@ export default function Intersect() {
 
     return (
         <div>
+            <SearchMedia></SearchMedia>
             <h2>Library Intersection</h2>
             <svg width="250" height="180" xmlns="http://www.w3.org/2000/svg">
                 <defs>

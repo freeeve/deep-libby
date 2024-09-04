@@ -6,6 +6,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
 import AsyncSelect from "react-select";
+import SearchMedia from "./SearchMedia.tsx";
 
 interface UniqueResponse {
     unique: SelectedMedia[];
@@ -54,7 +55,22 @@ export default function Unique() {
         unique: [],
     });
     const columnDefs: ColDef[] = [
-        {headerName: 'Book Title', field: 'title', minWidth: 250, sort: 'asc'},
+        {
+            headerName: 'Title (click opens libby)', field: 'title', minWidth: 250, sort: 'asc',
+            cellRenderer:
+                (params: any) => {
+                    if (uniqueResponse.unique.length > 0) {
+                        return (
+                            <a href={`https://libbyapp.com/library/${libraryId}/generated-36532/page-1/${params.data.id}`}
+                               style={{cursor: 'pointer'}}>
+                                {params.value}
+                            </a>
+                        );
+                    } else {
+                        return null; // or some default JSX
+                    }
+                }
+        },
         {
             headerName: 'Creator Names', field: 'creators',
             valueFormatter: (params: any) => {
@@ -87,22 +103,6 @@ export default function Unique() {
         {headerName: 'Available', field: 'availableCount', sort: 'desc', width: 140},
         {headerName: 'Holds', field: 'holdsCount', width: 110},
         {headerName: 'Estimated Wait Days', field: 'estimatedWaitDays', width: 190},
-        {
-            headerName: 'Open In Libby',
-            field: 'library.id',
-            cellRenderer: (params: any) => {
-                if (uniqueResponse.unique.length > 0) {
-                    return (
-                        <a href={`https://libbyapp.com/library/${uniqueResponse.library.id}/generated-36532/page-1/${params.data.id}`}
-                           style={{cursor: 'pointer'}}>
-                            open in library
-                        </a>
-                    );
-                } else {
-                    return null;
-                }
-            }
-        },
     ];
 
 
@@ -169,6 +169,7 @@ export default function Unique() {
 
     return (
         <div>
+            <SearchMedia></SearchMedia>
             <h2>Library Unique Media</h2>
             <p>Search for media items that are unique to this library in all of libby's digital libraries.</p>
             <div>
