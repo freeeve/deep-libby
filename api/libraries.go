@@ -15,11 +15,10 @@ import (
 )
 
 type Library struct {
-	Id                 string `json:"id"`
-	WebsiteId          int    `json:"websiteId"`
-	Name               string `json:"name"`
-	IsConsortium       bool   `json:"isConsortium"`
-	IsAdvantageAccount bool   `json:"isAdvantageAccount"`
+	Id           string `json:"id"`
+	WebsiteId    int    `json:"websiteId"`
+	Name         string `json:"name"`
+	IsConsortium bool   `json:"isConsortium"`
 }
 
 type LibraryResponse struct {
@@ -81,11 +80,10 @@ func readLibraries() {
 			libraryIdMap[libraryId] = libraryIdInt
 		}
 		libraryMap[libraryIdInt] = Library{
-			Id:                 record[0],
-			WebsiteId:          websiteId,
-			Name:               record[2],
-			IsConsortium:       record[3] == "true",
-			IsAdvantageAccount: record[4] == "true",
+			Id:           record[0],
+			WebsiteId:    websiteId,
+			Name:         record[2],
+			IsConsortium: record[3] == "true",
 		}
 	}
 	gzr.Close()

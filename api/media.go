@@ -66,6 +66,12 @@ func (mm *MediaMap) Get(key uint32) (*Media, bool) {
 	return media, ok
 }
 
+func (mm *MediaMap) Len() int {
+	mm.RLock()
+	defer mm.RUnlock()
+	return len(mm.m)
+}
+
 func readMedia() {
 	mediaMap = NewMediaMap()
 	languageMap = sync.Map{}

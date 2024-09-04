@@ -153,7 +153,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if !dataLoaded {
 		w.Header().Add("Content-Type", "text/html")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("server is initializing. please refresh in a minute..."))
+		w.Write([]byte(fmt.Sprintf("server is initializing. please refresh in a minute... (%1.0f%% loaded)", float32(mediaMap.Len())/3200000.0*100.0)))
 		return
 	}
 	uiPrefix := "ui"
