@@ -10,16 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 )
 
 type MediaCreator struct {
@@ -33,15 +30,14 @@ var formatMap sync.Map
 var languageMap sync.Map
 
 type Media struct {
-	Id              uint64         `json:"id"`
+	Id              uint32         `json:"id"`
 	Title           string         `json:"title"`
 	Creators        []MediaCreator `json:"creators"`
 	CoverUrl        string         `json:"coverUrl"`
 	Subtitle        string         `json:"subtitle"`
 	Description     string         `json:"description"`
 	SeriesName      string         `json:"seriesName"`
-	SeriesReadOrder int            `json:"seriesReadOrder"`
-	SearchString    string         `json:"searchString"`
+	SeriesReadOrder uint16         `json:"seriesReadOrder"`
 }
 
 var mediaMap *MediaMap
@@ -112,7 +108,6 @@ func readMedia() {
 	}
 	cr := csv.NewReader(gzr)
 	var count int
-	var wg sync.WaitGroup
 	for {
 		record, err := cr.Read()
 		if err == io.EOF {
@@ -121,8 +116,7 @@ func readMedia() {
 		if err != nil {
 			log.Error().Err(err)
 		}
-		var builder strings.Builder
-		handleRecord(record, &builder, &wg)
+		handleRecord(record)
 		count++
 		if count%100000 == 0 {
 			duration := time.Since(startTime)
@@ -130,7 +124,6 @@ func readMedia() {
 			log.Info().Msgf("worker%d read %d media; avgTimePerRecord(ns): %d", 0, count, avgTimePerRecord)
 		}
 	}
-	wg.Wait()
 	gzr.Close()
 	search.Finalize()
 	// TODO probably do this a better way
@@ -138,7 +131,7 @@ func readMedia() {
 	log.Info().Msg("done reading media")
 }
 
-func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup) {
+func handleRecord(record []string) {
 	var creators []MediaCreator
 	err := json.Unmarshal([]byte(record[2]), &creators)
 	if err != nil {
@@ -147,6 +140,9 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 	languages := strings.Split(record[3], ";")
 	formats := strings.Split(record[5], ";")
 	mediaId, err := strconv.ParseUint(record[0], 10, 32)
+	if mediaId > math.MaxUint32 {
+		log.Warn().Msgf("mediaId too large %d", mediaId)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -154,61 +150,44 @@ func handleRecord(record []string, builder *strings.Builder, wg *sync.WaitGroup)
 	if err != nil {
 		log.Error().Err(err)
 	}
-	media := Media{
-		Id:              mediaId,
+	media := &Media{
+		Id:              uint32(mediaId),
 		Title:           record[1],
 		Creators:        creators,
 		CoverUrl:        record[4],
 		Subtitle:        record[6],
 		Description:     record[7],
 		SeriesName:      record[8],
-		SeriesReadOrder: seriesReadOrder,
+		SeriesReadOrder: uint16(seriesReadOrder),
 	}
-	mediaMap.Set(uint32(mediaId), &media)
-	builder.Reset()
-	for _, language := range languages {
-		bitmap, bitmapExists := languageMap.Load(strings.ToLower(language))
-		if !bitmapExists {
-			bitmap = &ConcurrentBitmap{
-				bitmap: roaring.New(),
-			}
-			languageMap.Store(strings.ToLower(language), bitmap)
-		}
-		bitmap.(*ConcurrentBitmap).Add(uint32(mediaId))
-		wg.Add(1)
-		search.Index(strings.ToLower(language), mediaId, wg)
-	}
-	for _, format := range formats {
-		bitmap, bitmapExists := formatMap.Load(strings.ToLower(format))
-		if !bitmapExists {
-			bitmap = &ConcurrentBitmap{
-				bitmap: roaring.New(),
-			}
-			formatMap.Store(strings.ToLower(format), bitmap)
-		}
-		bitmap.(*ConcurrentBitmap).Add(uint32(mediaId))
-		wg.Add(1)
-		search.Index(strings.ToLower(format), mediaId, wg)
-	}
+	mediaMap.Set(media.Id, media)
 
-	for _, creator := range creators {
-		builder.WriteString(creator.Name)
-		builder.WriteString(" ")
-	}
-	builder.WriteString(media.Title)
-	builder.WriteString(" ")
+	indexMedia(media, languages, formats)
+}
+
+func indexMedia(media *Media, languages []string, formats []string) {
+	indexStrings(languages, &languageMap, media.Id)
+	indexStrings(formats, &formatMap, media.Id)
+	search.Index(" "+media.Title+" ", media.Id)
 	if media.SeriesName != "" {
-		builder.WriteString(fmt.Sprintf("#%d", seriesReadOrder))
-		builder.WriteString(" ")
-		builder.WriteString(media.SeriesName)
-		builder.WriteString(" ")
+		search.Index(fmt.Sprintf("#%d", media.SeriesReadOrder), media.Id)
+		search.Index(" "+media.SeriesName+" ", media.Id)
 	}
-	wg.Add(1)
-	media.SearchString = strings.ToLower(builder.String())
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	normalized, _, err := transform.String(t, media.SearchString)
-	if err == nil {
-		media.SearchString = normalized
+	for _, creator := range media.Creators {
+		search.Index(" "+creator.Name+" ", media.Id)
 	}
-	search.Index(media.SearchString, mediaId, wg)
+}
+
+func indexStrings(stringSlice []string, bitmapMap *sync.Map, mediaId uint32) {
+	for _, str := range stringSlice {
+		bitmap, bitmapExists := bitmapMap.Load(strings.ToLower(str))
+		if !bitmapExists {
+			bitmap = &ConcurrentBitmap{
+				bitmap: roaring.New(),
+			}
+			bitmapMap.Store(strings.ToLower(str), bitmap)
+		}
+		bitmap.(*ConcurrentBitmap).Add(mediaId)
+		search.Index(strings.ToLower(str), mediaId)
+	}
 }

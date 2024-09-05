@@ -8,9 +8,27 @@ export default function About() {
             <p>This site is unaffiliated with Libby / Overdrive.</p>
             <p>
                 Please send complaints to <strong>/dev/null</strong> and praise/constructive feedback to eve-f on
-                reddit.
+                reddit or eve at this domain in email.
             </p>
             <h2>Changelog</h2>
+            <h3>Version 2024-09-05:</h3>
+            <ul>
+                <li>UI: fixed a bug where the availability page's "open in libby" links didn't work. Main reason for
+                    release.
+                </li>
+                <li>Search: pushed sorting results to the client side, which saves 100-150ms of cpu for the worst cases,
+                    and
+                    will eventually make this easier to scale, and it is transparent to the user.
+                </li>
+                <li>I'm starting to optimize memory usage on the service. Currently the data is all loaded into memory
+                    and served directly from there. It takes ~17gb of memory, after some tightening of types (don't
+                    really care if a book has &gt;16k available at a given library). I'd like to get memory down
+                    to &lt;14gb, as a first goal. Then &lt;6gb. Notably these sizes are a couple of gigs less than ec2
+                    memory sizes, so each time it gets down below the next level, it'll cost a bit less to run. I doubt
+                    I'll be able to get it down to ~3gb, but that would be ideal. The ngram roaring bitmaps (used for
+                    the search) alone currently take only about ~700mb. I love this part of software engineering.
+                </li>
+            </ul>
             <h3>Version 2024-09-04:</h3>
             <ul>
                 <li>Changelog: I'll start tracking code updates here.</li>

@@ -49,14 +49,13 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
+	// this one is fast and libraryIds need to be loaded before availability/media
 	readLibraries()
 	go readAvailability()
-	// this is the slowest one, let it block the server start
 	go readMedia()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
-	// uiServeMux.Handle("GET /", gziphandler.GzipHandler(http.HandlerFunc(uiHandler)))
 	uiServeMux.Handle("GET /", http.HandlerFunc(uiHandler))
 
 	apiServeMux := http.NewServeMux()
@@ -138,14 +137,14 @@ func memoryHandler(writer http.ResponseWriter, request *http.Request) {
 	})
 	log.Info().Msgf("Memory usage of languageMap values: %d bytes\n", sum)
 	sum = 0
-	for trigram, bitmap := range search.trigramMap {
+	for ngram, bitmap := range search.ngramMap {
 		size := bitmap.UnsafeBitmap().GetSizeInBytes()
 		if size > 1024*1024 {
-			log.Info().Msgf("memory usage of trigram[%s]: %d bytes\n", trigram, size)
+			log.Info().Msgf("memory usage of ngram[%s]: %d bytes\n", ngram, size)
 		}
 		sum += size
 	}
-	log.Info().Msgf("Memory usage (total) of search index: %d bytes\n", int(sum)+calculateMemoryUsage(search.trigramMap))
+	log.Info().Msgf("Memory usage (total) of search index: %d bytes\n", int(sum)+calculateMemoryUsage(search.ngramMap))
 	runtime.GC()
 }
 
@@ -153,7 +152,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	if !dataLoaded {
 		w.Header().Add("Content-Type", "text/html")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(fmt.Sprintf("server is initializing. please refresh in a minute... (%1.0f%% loaded)", float32(mediaMap.Len())/3200000.0*100.0)))
+		w.Write([]byte(fmt.Sprintf("server is initializing. please refresh in a minute... (%1.1f%% loaded)", float32(mediaMap.Len())/3200000.0*100.0)))
 		return
 	}
 	uiPrefix := "ui"

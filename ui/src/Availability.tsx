@@ -55,7 +55,7 @@ export default function Availability() {
             cellRenderer: (params: any) => {
                 if (selectedMedia !== null) {
                     return (
-                        <a href={`https://libbyapp.com/library/${params.value}/generated-36532/page-1/${selectedMedia.id}`}
+                        <a href={`https://libbyapp.com/library/${params.data.library.id}/generated-36532/page-1/${selectedMedia.id}`}
                            style={{cursor: 'pointer'}}>
                             {params.value}
                         </a>
@@ -150,7 +150,7 @@ export default function Availability() {
                     <div>
                         <div style={{textAlign: 'left'}}>
                             <div><strong>Title:</strong> <strong>{selectedMedia.title}</strong></div>
-                            {selectedMedia.seriesName !== "" && <div><strong>Series:</strong>
+                            {selectedMedia.seriesName !== "" && <div><strong>Series: </strong>
                                 <strong>#{selectedMedia.seriesReadOrder} in {selectedMedia.seriesName}</strong></div>}
                             <div>
                                 <strong>Creators:</strong> {selectedMedia.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}
