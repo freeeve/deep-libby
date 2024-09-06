@@ -221,12 +221,12 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	media, _ := mediaMap.Get(uint32(id))
-	log.Info().Msgf("/api/availability media: %v", media)
+	log.Info().Msgf("/api/availability media: %v", NewSearchResult(media))
 	var results []LibraryMediaCounts
 	for libraryId, counts := range availabilityMap[uint32(id)] {
 		library, exists := libraryMap[libraryId]
 		if !exists {
-			log.Error().Msgf("library not found for library id %s", libraryId)
+			log.Error().Msgf("library not found for library id %d", libraryId)
 			continue
 		}
 		if library.Id == "uskindle" {

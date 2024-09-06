@@ -11,6 +11,21 @@ export default function About() {
                 reddit or eve at this domain in email.
             </p>
             <h2>Changelog</h2>
+            <h3>Version 2024-09-06:</h3>
+            <ul>
+                <li>
+                    Availability can now be updated live on the availability page (two links you can click on the right
+                    hand side). It will load with stale data, then update with the latest data from the Overdrive
+                    API--there is a delay to prevent overwhelming the Overdrive APIs.
+                    Unfortunately, if a title is recently added to a collection, we won't know until the collection
+                    refresh (which takes longer), but at least the owned/available/holds counts will be updated for the
+                    collections already known.
+                </li>
+                <li>Memory optimization progress: Strings (titles, descriptions, etc.) are now stored in a memory mapped
+                    file, so the OS can manage how much memory it wants to page in. It is already down to ~10gb, didn't
+                    expect that to be such a quick win.
+                </li>
+            </ul>
             <h3>Version 2024-09-05:</h3>
             <ul>
                 <li>UI: fixed a bug where the availability page's "open in libby" links didn't work. Main reason for

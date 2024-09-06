@@ -30,17 +30,18 @@ var formatMap sync.Map
 var languageMap sync.Map
 
 type Media struct {
-	Id              uint32         `json:"id"`
-	Title           string         `json:"title"`
-	Creators        []MediaCreator `json:"creators"`
-	CoverUrl        string         `json:"coverUrl"`
-	Subtitle        string         `json:"subtitle"`
-	Description     string         `json:"description"`
-	SeriesName      string         `json:"seriesName"`
-	SeriesReadOrder uint16         `json:"seriesReadOrder"`
+	Id               uint32
+	TitleStart       uint32
+	Creators         []MediaCreator
+	CoverUrlStart    uint32
+	SubtitleStart    uint32
+	DescriptionStart uint32
+	SeriesStart      uint32
+	SeriesReadOrder  uint16
 }
 
 var mediaMap *MediaMap
+var stringContainer *StringContainer
 
 type MediaMap struct {
 	sync.RWMutex
@@ -74,6 +75,11 @@ func (mm *MediaMap) Len() int {
 
 func readMedia() {
 	mediaMap = NewMediaMap()
+	var err error
+	stringContainer, err = NewStringContainer("media_strings")
+	if err != nil {
+		log.Error().Err(err)
+	}
 	languageMap = sync.Map{}
 	formatMap = sync.Map{}
 	startTime := time.Now()
@@ -119,6 +125,7 @@ func readMedia() {
 		handleRecord(record)
 		count++
 		if count%100000 == 0 {
+			stringContainer.Flush()
 			duration := time.Since(startTime)
 			avgTimePerRecord := duration.Nanoseconds() / int64(count)
 			log.Info().Msgf("worker%d read %d media; avgTimePerRecord(ns): %d", 0, count, avgTimePerRecord)
@@ -126,6 +133,8 @@ func readMedia() {
 	}
 	gzr.Close()
 	search.Finalize()
+	stringContainer.Flush()
+	log.Info().Msgf("string container used: %d", stringContainer.currentOffset)
 	// TODO probably do this a better way
 	dataLoaded = true
 	log.Info().Msg("done reading media")
@@ -150,15 +159,28 @@ func handleRecord(record []string) {
 	if err != nil {
 		log.Error().Err(err)
 	}
+	titleStart := stringContainer.Add(record[1])
+	log.Trace().Str("title", record[1]).
+		Str("startLength", fmt.Sprintf("start: %d length: %d", titleStart)).
+		Msg("indexing media")
+	coverUrlStart := stringContainer.Add(record[4])
+	descriptionStart := stringContainer.Add(record[7])
+
 	media := &Media{
-		Id:              uint32(mediaId),
-		Title:           record[1],
-		Creators:        creators,
-		CoverUrl:        record[4],
-		Subtitle:        record[6],
-		Description:     record[7],
-		SeriesName:      record[8],
-		SeriesReadOrder: uint16(seriesReadOrder),
+		Id:               uint32(mediaId),
+		TitleStart:       titleStart,
+		Creators:         creators,
+		CoverUrlStart:    coverUrlStart,
+		DescriptionStart: descriptionStart,
+	}
+	if record[6] != "" {
+		subtitleStart := stringContainer.Add(record[6])
+		media.SubtitleStart = subtitleStart
+	}
+	if record[8] != "" {
+		seriesStart := stringContainer.Add(record[8])
+		media.SeriesStart = seriesStart
+		media.SeriesReadOrder = uint16(seriesReadOrder)
 	}
 	mediaMap.Set(media.Id, media)
 
@@ -168,10 +190,13 @@ func handleRecord(record []string) {
 func indexMedia(media *Media, languages []string, formats []string) {
 	indexStrings(languages, &languageMap, media.Id)
 	indexStrings(formats, &formatMap, media.Id)
-	search.Index(" "+media.Title+" ", media.Id)
-	if media.SeriesName != "" {
+	title := stringContainer.Get(media.TitleStart)
+	log.Trace().Str("title", title).Msg("indexing media")
+	search.Index(" "+title+" ", media.Id)
+	if media.SeriesStart != 0 {
+		seriesName := stringContainer.Get(media.SeriesStart)
 		search.Index(fmt.Sprintf("#%d", media.SeriesReadOrder), media.Id)
-		search.Index(" "+media.SeriesName+" ", media.Id)
+		search.Index(" "+seriesName+" ", media.Id)
 	}
 	for _, creator := range media.Creators {
 		search.Index(" "+creator.Name+" ", media.Id)

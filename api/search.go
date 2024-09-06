@@ -219,32 +219,40 @@ func NewSearchResult(media *Media) *SearchResult {
 	var formats []string
 	var languages []string
 	formatMap.Range(func(format, bitmap interface{}) bool {
-		if bitmap.(*ConcurrentBitmap).Contains(uint32(media.Id)) {
+		if bitmap.(*ConcurrentBitmap).Contains(media.Id) {
 			formats = append(formats, format.(string))
 		}
 		return true
 	})
 	languageMap.Range(func(language, bitmap interface{}) bool {
-		if bitmap.(*ConcurrentBitmap).Contains(uint32(media.Id)) {
+		if bitmap.(*ConcurrentBitmap).Contains(media.Id) {
 			languages = append(languages, language.(string))
 		}
 		return true
 	})
 	sort.Strings(formats)
 	sort.Strings(languages)
-	return &SearchResult{
-		Id:              media.Id,
-		Title:           media.Title,
-		Creators:        media.Creators,
-		CoverUrl:        media.CoverUrl,
-		Subtitle:        media.Subtitle,
-		Description:     media.Description,
-		SeriesName:      media.SeriesName,
-		SeriesReadOrder: media.SeriesReadOrder,
-		LibraryCount:    len(availabilityMap[uint32(media.Id)]),
-		Languages:       languages,
-		Formats:         formats,
+	title := stringContainer.Get(media.TitleStart)
+	coverUrl := stringContainer.Get(media.CoverUrlStart)
+	description := stringContainer.Get(media.DescriptionStart)
+	result := &SearchResult{
+		Id:           media.Id,
+		Title:        title,
+		Creators:     media.Creators,
+		CoverUrl:     coverUrl,
+		Description:  description,
+		LibraryCount: len(availabilityMap[media.Id]),
+		Languages:    languages,
+		Formats:      formats,
 	}
+	if media.SubtitleStart != 0 {
+		result.Subtitle = stringContainer.Get(media.SubtitleStart)
+	}
+	if media.SeriesStart != 0 {
+		result.SeriesName = stringContainer.Get(media.SeriesStart)
+		result.SeriesReadOrder = media.SeriesReadOrder
+	}
+	return result
 }
 
 func searchHandler(w http.ResponseWriter, r *http.Request) {

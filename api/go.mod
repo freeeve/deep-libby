@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.27
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.3
 	github.com/rs/zerolog v1.33.0
+	github.com/tysonmote/gommap v0.0.3
 	golang.org/x/text v0.18.0
 )
 

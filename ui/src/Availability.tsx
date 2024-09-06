@@ -4,7 +4,7 @@ import {AgGridReact} from "ag-grid-react";
 
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
+import {ColDef, GridOptions, SizeColumnsToFitGridStrategy} from "ag-grid-community";
 import SearchMedia from "./SearchMedia.tsx";
 
 interface SelectedMedia {
@@ -19,13 +19,28 @@ interface SelectedMedia {
     seriesName: string;
     seriesReadOrder: number;
     libraryCount: number;
-    availability: {
-        library: { id: string, name: string, websiteId: number },
-        ownedCount: number,
-        availableCount: number,
-        holdsCount: number,
-        estimatedWaitDays: number
-    }[];
+    availability: [];
+}
+
+interface SelectedMediaAvailability {
+    library: { id: string, name: string, websiteId: number };
+    ownedCount: number;
+    availableCount: number;
+    holdsCount: number;
+    estimatedWaitDays: number;
+    favorite: boolean;
+}
+
+interface AvailabilityResponse {
+    items: AvailabilityItem[];
+}
+
+interface AvailabilityItem {
+    id: string;
+    ownedCopies: number;
+    availableCopies: number;
+    holdsCount: number;
+    estimatedWaitDays: number;
 }
 
 interface Library {
@@ -42,9 +57,12 @@ export default function Availability() {
     }
     const {mediaId} = useParams();
     console.log(mediaId);
+    const [gridOptions, setGridOptions] = useState<GridOptions>({api: null});
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
     console.log("mediaId", mediaId);
     const [favorites, setFavorites] = useState<string[]>([]);
+    const [availabilityUpdateMap, setAvailabilityUpdateMap] = useState<Map<string, boolean>>(new Map<string, boolean>());
+    const [availabilityProcessMap, setAvailabilityProcessMap] = useState<Map<string, boolean>>(new Map<string, boolean>());
 
     useEffect(() => {
     }, [favorites, selectedMedia]);
@@ -68,12 +86,132 @@ export default function Availability() {
         {
             headerName: 'Fav.', field: 'library.favorite', sort: 'desc', width: 130,
         },
-        {headerName: 'Owned', field: 'ownedCount', width: 110},
-        {headerName: 'Available', field: 'availableCount', sort: 'desc', width: 140},
-        {headerName: 'Holds', field: 'holdsCount', width: 110},
-        {headerName: 'Estimated Wait Days', field: 'estimatedWaitDays', sort: 'asc', width: 190},
+        {
+            headerName: 'Owned', field: 'ownedCount', width: 110,
+            cellRenderer: (params: any) => {
+                if (availabilityUpdateMap.get(params.data.library.id)) {
+                    return <span>{params.value}</span>;
+                } else {
+                    return <span>{params.value + ' (stale)'}</span>
+                }
+            },
+        },
+        {
+            headerName: 'Available', field: 'availableCount', sort: 'desc', width: 140,
+            cellRenderer: (params: any) => {
+                if (availabilityUpdateMap.get(params.data.library.id)) {
+                    return <span>{params.value}</span>;
+                } else {
+                    return <span>{params.value + ' (stale)'}</span>
+                }
+            },
+        },
+        {
+            headerName: 'Holds', field: 'holdsCount', width: 110,
+            cellRenderer: (params: any) => {
+                if (availabilityUpdateMap.get(params.data.library.id)) {
+                    return <span>{params.value}</span>;
+                } else {
+                    return <span>{params.value + ' (stale)'}</span>
+                }
+            },
+        },
+        {
+            headerName: 'Estimated Wait Days', field: 'estimatedWaitDays', sort: 'asc', width: 190,
+            cellRenderer: (params: any) => {
+                if (availabilityUpdateMap.get(params.data.library.id)) {
+                    return <span>{params.value}</span>;
+                } else {
+                    return <span>{params.value + ' (stale)'}</span>
+                }
+            },
+        },
         {headerName: 'Formats', field: 'formats', width: 190},
     ];
+
+    const clickUpdateAvailabilityFavorites = () => {
+        if (selectedMedia) {
+            let count = 0;
+            selectedMedia.availability.forEach((item: any) => {
+                if (item.library.favorite === true && !availabilityProcessMap.get(item.library.id)) {
+                    availabilityProcessMap.set(item.library.id, true);
+                    setAvailabilityProcessMap(availabilityProcessMap);
+                    count++;
+                    setTimeout(() => {
+                        updateLibraryAvailability(item.library.id, selectedMedia.id);
+                    }, 100 * count);
+                }
+            });
+        }
+    };
+
+    const clickUpdateAvailabilityNonFavorites = () => {
+        if (selectedMedia) {
+            let count = 0;
+            selectedMedia.availability.forEach((item: any) => {
+                if (item.library.favorite === false && !availabilityProcessMap.get(item.library.id)) {
+                    availabilityProcessMap.set(item.library.id, true);
+                    setAvailabilityProcessMap(availabilityProcessMap);
+                    count++;
+                    setTimeout(() => {
+                        updateLibraryAvailability(item.library.id, selectedMedia.id);
+                    }, 500 * count);
+                }
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (gridOptions && gridOptions.api) {
+            console.log("redrawing rows");
+            gridOptions.api.redrawRows();
+        }
+    }, [availabilityUpdateMap, gridOptions]);
+
+    const updateLibraryAvailability = (libraryId: string, mediaId: string) => {
+        if (selectedMedia) {
+            let url = new URL(`https://thunder.api.overdrive.com/v2/libraries/${libraryId}/media/availability`, baseUrl);
+            fetch(url, {
+                method: 'POST',
+                body: JSON.stringify({
+                    ids: ["" + mediaId],
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then((response: Response) => response.json())
+                .then((data: AvailabilityResponse) => {
+                    const newAvailability = data.items && data.items.length > 0 ? data.items[0] : undefined;
+                    if (newAvailability) {
+                        availabilityUpdateMap.set(libraryId, true);
+                        setAvailabilityUpdateMap(availabilityUpdateMap);
+                        availabilityProcessMap.set(libraryId, true);
+                        setAvailabilityProcessMap(availabilityProcessMap);
+                        selectedMedia.availability.forEach((item: SelectedMediaAvailability) => {
+                            if (item.library.id === libraryId) {
+                                console.log('updating availability', libraryId, newAvailability.ownedCopies, newAvailability.availableCopies, newAvailability.holdsCount, newAvailability.estimatedWaitDays)
+                                item.ownedCount = newAvailability.ownedCopies;
+                                item.availableCount = newAvailability.availableCopies;
+                                item.holdsCount = newAvailability.holdsCount;
+                                item.estimatedWaitDays = newAvailability.estimatedWaitDays;
+                                if (item.availableCount > 0 && item.estimatedWaitDays > 0) {
+                                    item.estimatedWaitDays = 0;
+                                }
+                                if (!item.estimatedWaitDays) {
+                                    item.estimatedWaitDays = 0;
+                                }
+                            }
+                        });
+                        console.log('newAvailability ', JSON.stringify(newAvailability));
+                        setSelectedMedia({...selectedMedia});
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+    }
 
     const clickMedia = (selectedOption: any, favorites: string[]) => {
         let url = new URL('/api/availability', baseUrl);
@@ -147,7 +285,7 @@ export default function Availability() {
                 ></SearchMedia>
                 <h2>Media Availability</h2>
                 <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                    <div>
+                    <div style={{textAlign: 'left', width: "75%"}}>
                         <div style={{textAlign: 'left'}}>
                             <div><strong>Title:</strong> <strong>{selectedMedia.title}</strong></div>
                             {selectedMedia.seriesName !== "" && <div><strong>Series: </strong>
@@ -170,17 +308,32 @@ export default function Availability() {
                             </div>
                         </div>
                     </div>
-                    <div style={{textAlign: 'left'}}>
-                        <span style={{
-                            verticalAlign: 'top',
-                            marginRight: 5
-                        }}>owned by {selectedMedia.libraryCount} libraries</span>
-                        <img src={selectedMedia.coverUrl}
-                             alt={selectedMedia.title}
-                             width={0} height={0}
-                             sizes="100vw"
-                             style={{width: 'auto', height: '100px'}} // optional
-                        />
+                    <div style={{textAlign: 'right', width: "25%"}}>
+                        <div>
+                            <div style={{
+                                verticalAlign: 'top',
+                                marginRight: 5
+                            }}>
+                                owned by {selectedMedia.libraryCount} libraries
+                            </div>
+                            <img src={selectedMedia.coverUrl}
+                                 alt={selectedMedia.title}
+                                 width={0} height={0}
+                                 sizes="100vw"
+                                 style={{width: 'auto', height: '100px', textAlign: 'right'}}
+                            />
+                        </div>
+                        <div style={{marginTop: 25}}>
+                            <a style={{cursor: "pointer"}} onClick={clickUpdateAvailabilityFavorites}>
+                                get live favorites availability
+                            </a>
+                        </div>
+                        <div style={{marginTop: 15}}>
+                            <a style={{cursor: "pointer"}} onClick={clickUpdateAvailabilityNonFavorites}>
+                                get live non-favorites availability (slow)
+                            </a>
+                        </div>
+
                     </div>
                 </div>
                 <div className="ag-theme-alpine-auto-dark" style={{height: 600, marginTop: 25}}>
@@ -193,6 +346,10 @@ export default function Availability() {
                             resizable: true
                         }}
                         autoSizeStrategy={autoSizeStrategy}
+                        dependencies={[availabilityUpdateMap]}
+                        onGridReady={(params) => {
+                            setGridOptions({api: params.api}); // Set the gridOptions state
+                        }}
                     />
                 </div>
             </div>

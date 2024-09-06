@@ -49,6 +49,7 @@ func main() {
 	}
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
+	log.Info().Any("ngrams", getNgrams("verrüchte")).Msg("ngrams")
 	// this one is fast and libraryIds need to be loaded before availability/media
 	readLibraries()
 	go readAvailability()
