@@ -1,0 +1,27 @@
+---
+import Layout from "./Default.astro"
+import BookSideBar from "@components/library/BookSideBar.astro"
+import BookContent from "@components/library/BookContent.astro"
+import RecentBooks from "@components/books/RecentBooks.astro"
+
+const ogImage = new URL(`/v1/generate/og/${Astro.params.slug}.png`, Astro.url)
+
+const { content, headings } = Astro.props
+const { title, description } = content
+---
+
+<Layout
+  title={title as string}
+  description={description as string}
+  ogImage={ogImage}
+>
+  <main class="p-6 lg:grid lg:grid-cols-3 flex justify-center">
+    <BookSideBar headings={headings} />
+    <BookContent content={content}>
+      <slot />
+    </BookContent>
+  </main>
+  <section class="p-6">
+    <RecentBooks count={6} />
+  </section>
+</Layout>

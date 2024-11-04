@@ -1,0 +1,42 @@
+---
+import type { CollectionEntry } from "astro:content"
+import { Pill } from "@eliancodes/brutal-ui"
+import SummaryCard from "../generic/SummaryCard.astro"
+import { Button } from "@eliancodes/brutal-ui"
+
+interface Props {
+  book: CollectionEntry<"library">
+}
+
+const { book } = Astro.props
+---
+
+<SummaryCard
+  title={book.data.title}
+  imgAlt={book.data.title}
+  imgSrc={book.data.imgUrl}
+  description={book.data.description}
+>
+  <div class="flex justify-end my-4">
+    <Button href={`/book/${book.slug}/`}>Read book &rarr;</Button>
+  </div>
+
+  <div class="hidden sm:inline-block">
+    <p class="poppins mt-2">tags:</p>
+    <div class="flex justify-between items-center">
+      <ul class="flex gap-4 mt-2">
+        {
+          book.data.tags.map((tag) => {
+            return (
+              <li>
+                <a class="sanchez" href={`/book/tags/${tag.toLowerCase()}/`}>
+                  <Pill>{tag}</Pill>
+                </a>
+              </li>
+            )
+          })
+        }
+      </ul>
+    </div>
+  </div>
+</SummaryCard>

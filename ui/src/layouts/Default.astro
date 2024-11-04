@@ -1,0 +1,35 @@
+---
+import BaseNavigation from "@components/layout/BaseNavigation.astro"
+import BaseFooter from "@components/layout/BaseFooter.astro"
+import BaseHead from "../components/layout/BaseHead.astro"
+import "../styles/global.css"
+
+interface Props {
+  title: string
+  description: string
+  classList?: string
+  pageTitle?: string
+  ogImage?: URL
+}
+
+const { title, description, classList, pageTitle, ogImage } = Astro.props
+---
+
+<html lang="en" class="h-full">
+  <BaseHead ogImage={ogImage} title={title} description={description} />
+
+  <body
+    class:list={[
+      "bg-yellow text-deep-blue min-h-screen flex flex-col",
+      classList,
+    ]}
+  >
+    <BaseNavigation pageTitle={pageTitle} />
+    <main
+      class="flex-grow container mx-auto p-4 border-4 border-deep-blue my-4"
+    >
+      <slot />
+    </main>
+    <BaseFooter />
+  </body>
+</html>

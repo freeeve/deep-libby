@@ -1,0 +1,31 @@
+---
+import { Card } from "@eliancodes/brutal-ui"
+import { Button } from "@eliancodes/brutal-ui"
+
+// Mock data for recent books
+const recentBooks = [
+  { title: "The Digital Renaissance", author: "Ada Lovelace" },
+  { title: "Quantum Computing for Beginners", author: "Richard Feynman" },
+  { title: "The Art of Code", author: "Grace Hopper" },
+]
+---
+
+<section class="mb-8">
+  <h2 class="text-3xl font-bold mb-4 text-deep-blue">Recent Additions</h2>
+  <div class="grid md:grid-cols-3 gap-4">
+    {
+      recentBooks.map((book) => (
+        <Card>
+          <h3 class="text-xl font-bold mb-2">{book.title}</h3>
+          <p class="mb-4">by {book.author}</p>
+          <Button href={`/book/${book.title.toLowerCase().replace(/ /g, "-")}`}>
+            View Details
+          </Button>
+        </Card>
+      ))
+    }
+  </div>
+  <div class="mt-4 text-right">
+    <Button href="/search">View All Books →</Button>
+  </div>
+</section>

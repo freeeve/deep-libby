@@ -1,0 +1,50 @@
+---
+import Layout from "@layouts/Default.astro"
+import { Card } from "@eliancodes/brutal-ui"
+import { Button } from "@eliancodes/brutal-ui"
+import RecentBooks from "@components/books/RecentBooks.astro"
+
+const features = [
+  {
+    title: "Advanced Search",
+    description: "Find any book across our vast network of libraries.",
+    color: "#2A9D8F",
+    link: "/search",
+  },
+  {
+    title: "Real-time Availability",
+    description: "Check book availability instantly at multiple locations.",
+    color: "#2A9D8F",
+    link: "/find",
+  },
+  {
+    title: "Library Comparison",
+    description: "Compare collections between different libraries.",
+    color: "#2A9D8F",
+    link: "/compare",
+  },
+]
+---
+
+<Layout
+  title="Deep Library"
+  description="Your comprehensive library search and availability portal"
+  pageTitle="Welcome to Deep Library"
+>
+  <main class="bg-yellow p-6">
+    <section class="grid md:grid-cols-3 gap-4 mb-8">
+      {
+        features.map((feature) => (
+          <Card>
+            <h2 class="text-xl font-bold mb-2 text-deep-blue">
+              {feature.title}
+            </h2>
+            <p class="mb-4 text-deep-blue">{feature.description}</p>
+            <Button href={feature.link}>Explore {feature.title}</Button>
+          </Card>
+        ))
+      }
+    </section>
+    <RecentBooks />
+  </main>
+</Layout>

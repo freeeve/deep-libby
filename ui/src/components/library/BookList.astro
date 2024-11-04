@@ -1,0 +1,22 @@
+---
+import type { CollectionEntry } from "astro:content"
+import BookSummaryCard from "./BookSummaryCard.astro"
+
+interface Props {
+  books: CollectionEntry<"library">[]
+}
+
+const { books } = Astro.props
+---
+
+<ul class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+  {
+    books.map((book) => {
+      return (
+        <li>
+          <BookSummaryCard book={book} />
+        </li>
+      )
+    })
+  }
+</ul>
