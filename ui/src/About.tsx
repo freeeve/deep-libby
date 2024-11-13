@@ -8,7 +8,7 @@ export default function About() {
             <p>This site is unaffiliated with Libby / Overdrive.</p>
             <p>
                 Please send complaints to <strong>/dev/null</strong> and praise/constructive feedback to eve-f on
-                reddit or eve at this domain in email.
+                reddit.
             </p>
             <h2>Changelog</h2>
             <h3>Version 2024-09-06:</h3>

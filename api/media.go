@@ -38,6 +38,7 @@ type Media struct {
 	DescriptionStart uint32
 	SeriesStart      uint32
 	SeriesReadOrder  uint16
+	IdsStarts        []uint32
 }
 
 var mediaMap *MediaMap
@@ -148,6 +149,7 @@ func handleRecord(record []string) {
 	}
 	languages := strings.Split(record[3], ";")
 	formats := strings.Split(record[5], ";")
+	identifiers := strings.Split(record[10], ";")
 	mediaId, err := strconv.ParseUint(record[0], 10, 32)
 	if mediaId > math.MaxUint32 {
 		log.Warn().Msgf("mediaId too large %d", mediaId)
@@ -183,11 +185,11 @@ func handleRecord(record []string) {
 		media.SeriesReadOrder = uint16(seriesReadOrder)
 	}
 	mediaMap.Set(media.Id, media)
-
-	indexMedia(media, languages, formats)
+	//log.Debug().Msgf("mediaId: %d %v", media.Id, identifiers)
+	indexMedia(media, languages, formats, identifiers)
 }
 
-func indexMedia(media *Media, languages []string, formats []string) {
+func indexMedia(media *Media, languages, formats, identifiers []string) {
 	indexStrings(languages, &languageMap, media.Id)
 	indexStrings(formats, &formatMap, media.Id)
 	title := stringContainer.Get(media.TitleStart)
@@ -200,6 +202,9 @@ func indexMedia(media *Media, languages []string, formats []string) {
 	}
 	for _, creator := range media.Creators {
 		search.Index(" "+creator.Name+" ", media.Id)
+	}
+	for _, identifier := range identifiers {
+		search.Index(" "+identifier+" ", media.Id)
 	}
 }
 

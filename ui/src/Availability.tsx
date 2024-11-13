@@ -4,7 +4,7 @@ import {AgGridReact} from "ag-grid-react";
 
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import {ColDef, GridOptions, SizeColumnsToFitGridStrategy} from "ag-grid-community";
+import {ColDef, SizeColumnsToFitGridStrategy} from "ag-grid-community";
 import SearchMedia from "./SearchMedia.tsx";
 
 interface SelectedMedia {
@@ -48,6 +48,10 @@ interface Library {
     websiteId: number;
     name: string;
     isConsortium: boolean;
+}
+
+interface GridOptions {
+    api: any;
 }
 
 export default function Availability() {
@@ -346,7 +350,6 @@ export default function Availability() {
                             resizable: true
                         }}
                         autoSizeStrategy={autoSizeStrategy}
-                        dependencies={[availabilityUpdateMap]}
                         onGridReady={(params) => {
                             setGridOptions({api: params.api}); // Set the gridOptions state
                         }}
