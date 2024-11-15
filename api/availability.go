@@ -377,7 +377,7 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid library id", http.StatusBadRequest)
 		return
 	}
-	log.Info().Msgf("/api/intersect left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
+	log.Info().Msgf("/api/diff left: %s right: %s", leftLibrary.Id, rightLibrary.Id)
 
 	leftCounts := map[uint32]*MediaCounts{}
 	err := db.View(func(txn *badger.Txn) error {
