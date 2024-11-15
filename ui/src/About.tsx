@@ -11,6 +11,12 @@ export default function About() {
                 reddit.
             </p>
             <h2>Changelog</h2>
+            <h3>Version 2024-11-14:</h3>
+            <ul>
+                <li>
+                    Using Badger for the backend datastore, to make it cheaper to run (memory usage much reduced).
+                </li>
+            </ul>
             <h3>Version 2024-09-06:</h3>
             <ul>
                 <li>

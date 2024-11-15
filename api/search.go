@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/RoaringBitmap/roaring"
+	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -235,13 +236,28 @@ func NewSearchResult(media *Media) *SearchResult {
 	title := stringContainer.Get(media.TitleStart)
 	coverUrl := stringContainer.Get(media.CoverUrlStart)
 	description := stringContainer.Get(media.DescriptionStart)
+	libraryCount := 0
+	err := db.View(func(txn *badger.Txn) error {
+		prefix := getMediaAvailabilityPrefix(media.Id)
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		iter := txn.NewIterator(opts)
+		defer iter.Close()
+		for iter.Rewind(); iter.Valid(); iter.Next() {
+			libraryCount++
+		}
+		return nil
+	})
+	if err != nil {
+		log.Err(err)
+	}
 	result := &SearchResult{
 		Id:           media.Id,
 		Title:        title,
 		Creators:     media.Creators,
 		CoverUrl:     coverUrl,
 		Description:  description,
-		LibraryCount: len(availabilityMap[media.Id]),
+		LibraryCount: libraryCount,
 		Languages:    languages,
 		Formats:      formats,
 	}

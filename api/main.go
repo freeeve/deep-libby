@@ -11,14 +11,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"io"
+	stdlog "log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,8 +37,19 @@ var s3Client *s3.Client
 const port = "443"
 
 var dataLoaded = false
+var db *badger.DB
 
 func main() {
+	var err error
+	stdlog.SetFlags(0)
+	stdlog.SetOutput(log.Logger)
+	badgerOpts := badger.DefaultOptions("deeplibby.badger").
+		WithLogger(nil)
+	db, err = badger.Open(badgerOpts)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to open BadgerDB")
+	}
+	defer db.Close()
 	/*
 		go func() {
 			fmt.Println(http.ListenAndServe("localhost:6060", nil))
@@ -47,11 +62,27 @@ func main() {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000", NoColor: true})
 		log.Logger = log.Level(zerolog.InfoLevel)
 	}
+
+	// handle graceful shutdown on SIGINT and SIGTERM
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT)
+	go func() {
+		<-c
+		log.Info().Msg("shutting down on interrupt...")
+		db.Close()
+		os.Exit(0)
+	}()
+
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	log.Info().Msg("reading initial data")
-	log.Info().Any("ngrams", getNgrams("verrüchte")).Msg("ngrams")
 	// this one is fast and libraryIds need to be loaded before availability/media
 	readLibraries()
+	if os.Getenv("LOAD_ONLY") == "true" {
+		readAvailability()
+		log.Info().Msg("shutting down")
+		os.Exit(0)
+	}
 	go readAvailability()
 	go readMedia()
 
@@ -115,7 +146,7 @@ func calculateMemoryUsage(v interface{}) int {
 
 func memoryHandler(writer http.ResponseWriter, request *http.Request) {
 	log.Info().Msgf("Memory usage of mediaMap: %d bytes\n", calculateMemoryUsage(mediaMap.m))
-	log.Info().Msgf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
+	// log.Info().Msgf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
 	log.Info().Msgf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
 	sum := uint64(0)
 	formatMap.Range(func(key, value interface{}) bool {
