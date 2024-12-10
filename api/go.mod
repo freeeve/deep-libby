@@ -11,7 +11,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.3
 	github.com/dgraph-io/badger/v4 v4.4.0
 	github.com/rs/zerolog v1.33.0
-	github.com/tysonmote/gommap v0.0.3
 	golang.org/x/text v0.19.0
 )
 
