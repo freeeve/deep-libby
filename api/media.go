@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/csv"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"github.com/RoaringBitmap/roaring"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 	"io"
 	"math"
@@ -30,118 +33,125 @@ var formatMap sync.Map
 var languageMap sync.Map
 
 type Media struct {
-	Id               uint32
-	TitleStart       uint32
-	Creators         []MediaCreator
-	CoverUrlStart    uint32
-	SubtitleStart    uint32
-	DescriptionStart uint32
-	SeriesStart      uint32
-	SeriesReadOrder  uint16
-	IdsStarts        []uint32
+	Id              uint32
+	Title           string
+	Languages       []string
+	Creators        []MediaCreator
+	Formats         []string
+	CoverUrl        string
+	Subtitle        string
+	Description     string
+	Series          string
+	SeriesReadOrder uint16
+	Ids             []string
 }
 
-var mediaMap *MediaMap
-var stringContainer *StringContainer
-
-type MediaMap struct {
-	sync.RWMutex
-	m map[uint32]*Media
-}
-
-func NewMediaMap() *MediaMap {
-	return &MediaMap{
-		m: make(map[uint32]*Media),
-	}
-}
-
-func (mm *MediaMap) Set(key uint32, value *Media) {
-	mm.Lock()
-	defer mm.Unlock()
-	mm.m[key] = value
-}
-
-func (mm *MediaMap) Get(key uint32) (*Media, bool) {
-	mm.RLock()
-	defer mm.RUnlock()
-	media, ok := mm.m[key]
-	return media, ok
-}
-
-func (mm *MediaMap) Len() int {
-	mm.RLock()
-	defer mm.RUnlock()
-	return len(mm.m)
+func getMediaKey(mediaId uint32) []byte {
+	return append([]byte("mk"), []byte(strconv.Itoa(int(mediaId)))...)
 }
 
 func readMedia() {
-	mediaMap = NewMediaMap()
+	loadDone := false
+	if onDiskSize, _ := db.EstimateSize(nil); onDiskSize > 10000 {
+		log.Info().Msg("media already loaded")
+		if os.Getenv("LOAD_ONLY") == "true" {
+			log.Info().Msg("load only mode, running load anyway")
+		} else {
+			loadDone = true
+		}
+	}
 	var err error
-	stringContainer, err = NewStringContainer("media_strings")
 	if err != nil {
 		log.Error().Err(err)
 	}
 	languageMap = sync.Map{}
 	formatMap = sync.Map{}
 	startTime := time.Now()
-	var gzr *gzip.Reader
-	if os.Getenv("LOCAL_TESTING") == "true" {
-		f, err := os.Open("../../librarylibrary/media.csv.gz")
-		defer f.Close()
-		if err != nil {
-			log.Error().Err(err)
+	if !loadDone {
+		var gzr *gzip.Reader
+		if os.Getenv("LOCAL_TESTING") == "true" {
+			f, err := os.Open("../../librarylibrary/media.csv.gz")
+			defer f.Close()
+			if err != nil {
+				log.Error().Err(err)
+			}
+			gzr, err = gzip.NewReader(f)
+			if err != nil {
+				log.Error().Err(err)
+			}
+		} else {
+			s3Path := "media.csv.gz"
+			if s3Client == nil {
+				getS3Client()
+			}
+			resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
+				Bucket: aws.String("deep-libby"),
+				Key:    aws.String(s3Path),
+			})
+			if err != nil {
+				log.Error().Err(err)
+			}
+			defer resp.Body.Close()
+			gzr, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				log.Error().Err(err)
+			}
 		}
-		gzr, err = gzip.NewReader(f)
-		if err != nil {
-			log.Error().Err(err)
+		cr := csv.NewReader(gzr)
+		var count int
+		for {
+			record, err := cr.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Error().Err(err)
+			}
+			handleRecord(record)
+			count++
+			if count%100000 == 0 {
+				duration := time.Since(startTime)
+				avgTimePerRecord := duration.Nanoseconds() / int64(count)
+				log.Info().Msgf("worker%d read %d media; avgTimePerRecord(ns): %d", 0, count, avgTimePerRecord)
+			}
 		}
-	} else {
-		s3Path := "media.csv.gz"
-		if s3Client == nil {
-			getS3Client()
-		}
-		resp, err := s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
-			Bucket: aws.String("deep-libby"),
-			Key:    aws.String(s3Path),
-		})
-		if err != nil {
-			log.Error().Err(err)
-		}
-		defer resp.Body.Close()
-		gzr, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			log.Error().Err(err)
-		}
+		gzr.Close()
 	}
-	cr := csv.NewReader(gzr)
-	var count int
-	for {
-		record, err := cr.Read()
-		if err == io.EOF {
-			break
+
+	// index media
+	log.Info().Msg("indexing media")
+	db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = []byte("mk")
+		iter := txn.NewIterator(opts)
+		defer iter.Close()
+		count := 0
+		for iter.Rewind(); iter.ValidForPrefix([]byte("mk")); iter.Next() {
+			item := iter.Item()
+			err := item.Value(func(val []byte) error {
+				media := &Media{}
+				err := gob.NewDecoder(bytes.NewReader(val)).Decode(media)
+				if err != nil {
+					log.Error().Err(err)
+				}
+				indexMedia(media)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			count++
+			if count%1000000 == 0 {
+				log.Info().Msgf("indexed %d media", count)
+			}
 		}
-		if err != nil {
-			log.Error().Err(err)
-		}
-		handleRecord(record)
-		count++
-		if count%100000 == 0 {
-			stringContainer.Flush()
-			duration := time.Since(startTime)
-			avgTimePerRecord := duration.Nanoseconds() / int64(count)
-			log.Info().Msgf("worker%d read %d media; avgTimePerRecord(ns): %d", 0, count, avgTimePerRecord)
-		}
-	}
-	gzr.Close()
+		return nil
+	})
 	search.Finalize()
-	stringContainer.Flush()
-	log.Info().Msgf("string container used: %d", stringContainer.currentOffset)
-	// TODO probably do this a better way
-	dataLoaded = true
 	log.Info().Msg("done reading media")
 }
 
-func handleRecord(record []string) {
+func handleRecord(record []string) *Media {
 	var creators []MediaCreator
 	err := json.Unmarshal([]byte(record[2]), &creators)
 	if err != nil {
@@ -161,49 +171,67 @@ func handleRecord(record []string) {
 	if err != nil {
 		log.Error().Err(err)
 	}
-	titleStart := stringContainer.Add(record[1])
-	log.Trace().Str("title", record[1]).
-		Str("startLength", fmt.Sprintf("start: %d length: %d", titleStart)).
-		Msg("indexing media")
-	coverUrlStart := stringContainer.Add(record[4])
-	descriptionStart := stringContainer.Add(record[7])
-
 	media := &Media{
-		Id:               uint32(mediaId),
-		TitleStart:       titleStart,
-		Creators:         creators,
-		CoverUrlStart:    coverUrlStart,
-		DescriptionStart: descriptionStart,
+		Id:              uint32(mediaId),
+		Title:           record[1],
+		Creators:        creators,
+		Languages:       languages,
+		CoverUrl:        record[4],
+		Formats:         formats,
+		Subtitle:        record[6],
+		Description:     record[7],
+		Series:          record[8],
+		SeriesReadOrder: uint16(seriesReadOrder),
+		Ids:             identifiers,
 	}
-	if record[6] != "" {
-		subtitleStart := stringContainer.Add(record[6])
-		media.SubtitleStart = subtitleStart
+	buf := bytes.Buffer{}
+	err = gob.NewEncoder(&buf).Encode(media)
+	if err != nil {
+		panic(err)
 	}
-	if record[8] != "" {
-		seriesStart := stringContainer.Add(record[8])
-		media.SeriesStart = seriesStart
-		media.SeriesReadOrder = uint16(seriesReadOrder)
+	// insert into db
+	txn := db.NewTransaction(true)
+	err = txn.Set(getMediaKey(media.Id), buf.Bytes())
+	if err != nil {
+		panic(err)
 	}
-	mediaMap.Set(media.Id, media)
+	err = txn.Commit()
+	if err != nil {
+		panic(err)
+	}
 	//log.Debug().Msgf("mediaId: %d %v", media.Id, identifiers)
-	indexMedia(media, languages, formats, identifiers)
+	return media
 }
 
-func indexMedia(media *Media, languages, formats, identifiers []string) {
-	indexStrings(languages, &languageMap, media.Id)
-	indexStrings(formats, &formatMap, media.Id)
-	title := stringContainer.Get(media.TitleStart)
-	log.Trace().Str("title", title).Msg("indexing media")
-	search.Index(" "+title+" ", media.Id)
-	if media.SeriesStart != 0 {
-		seriesName := stringContainer.Get(media.SeriesStart)
+func getMedia(mediaId uint32) (*Media, error) {
+	txn := db.NewTransaction(false)
+	buf, err := txn.Get(getMediaKey(mediaId))
+	if err != nil {
+		return nil, err
+	}
+	media := &Media{}
+	err = buf.Value(func(val []byte) error {
+		return gob.NewDecoder(bytes.NewReader(val)).Decode(media)
+	})
+	txn.Discard()
+	if err != nil {
+		return nil, err
+	}
+	return media, nil
+}
+
+func indexMedia(media *Media) {
+	indexStrings(media.Languages, &languageMap, media.Id)
+	indexStrings(media.Formats, &formatMap, media.Id)
+	search.Index(" "+media.Title+" ", media.Id)
+	if media.Series != "" {
 		search.Index(fmt.Sprintf("#%d", media.SeriesReadOrder), media.Id)
-		search.Index(" "+seriesName+" ", media.Id)
+		search.Index(" "+media.Series+" ", media.Id)
 	}
 	for _, creator := range media.Creators {
 		search.Index(" "+creator.Name+" ", media.Id)
 	}
-	for _, identifier := range identifiers {
+	for _, identifier := range media.Ids {
 		search.Index(" "+identifier+" ", media.Id)
 	}
 }

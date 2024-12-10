@@ -10,7 +10,17 @@ export default function About() {
                 Please send complaints to <strong>/dev/null</strong> and praise/constructive feedback to eve-f on
                 reddit.
             </p>
+            <p>
+                The source code for this site is available on <a href="https://github.com/freeeve/deep-libby">github</a>.
+            </p>
             <h2>Changelog</h2>
+            <h3>Version 2024-12-10:</h3>
+            <ul>
+                <li>
+                    Fixed an availability counts/formats bug introduced in last build.
+                    Converted media info to be stored on badger as well.
+                </li>
+            </ul>
             <h3>Version 2024-11-14:</h3>
             <ul>
                 <li>

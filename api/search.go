@@ -233,9 +233,9 @@ func NewSearchResult(media *Media) *SearchResult {
 	})
 	sort.Strings(formats)
 	sort.Strings(languages)
-	title := stringContainer.Get(media.TitleStart)
-	coverUrl := stringContainer.Get(media.CoverUrlStart)
-	description := stringContainer.Get(media.DescriptionStart)
+	title := media.Title
+	coverUrl := media.CoverUrl
+	description := media.Description
 	libraryCount := 0
 	err := db.View(func(txn *badger.Txn) error {
 		prefix := getMediaAvailabilityPrefix(media.Id)
@@ -252,21 +252,17 @@ func NewSearchResult(media *Media) *SearchResult {
 		log.Err(err)
 	}
 	result := &SearchResult{
-		Id:           media.Id,
-		Title:        title,
-		Creators:     media.Creators,
-		CoverUrl:     coverUrl,
-		Description:  description,
-		LibraryCount: libraryCount,
-		Languages:    languages,
-		Formats:      formats,
-	}
-	if media.SubtitleStart != 0 {
-		result.Subtitle = stringContainer.Get(media.SubtitleStart)
-	}
-	if media.SeriesStart != 0 {
-		result.SeriesName = stringContainer.Get(media.SeriesStart)
-		result.SeriesReadOrder = media.SeriesReadOrder
+		Id:              media.Id,
+		Title:           title,
+		Creators:        media.Creators,
+		CoverUrl:        coverUrl,
+		Description:     description,
+		LibraryCount:    libraryCount,
+		Languages:       languages,
+		Formats:         formats,
+		Subtitle:        media.Subtitle,
+		SeriesName:      media.Series,
+		SeriesReadOrder: media.SeriesReadOrder,
 	}
 	return result
 }
@@ -278,7 +274,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	var results []*SearchResult
 	ids := search.Search(query)
 	for _, id := range ids {
-		media, _ := mediaMap.Get(id)
+		media, _ := getMedia(id)
 		searchResult := NewSearchResult(media)
 		results = append(results, searchResult)
 		if len(results) >= 500 {

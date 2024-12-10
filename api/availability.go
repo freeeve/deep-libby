@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dgraph-io/badger/v4"
@@ -99,11 +100,11 @@ func readAvailability() {
 			opts.Prefix = []byte("fmt")
 			iter := txn.NewIterator(opts)
 			defer iter.Close()
-			for iter.Rewind(); iter.Valid(); iter.Next() {
+			for iter.Rewind(); iter.ValidForPrefix([]byte("fmt")); iter.Next() {
 				item := iter.Item()
 				err := item.Value(func(val []byte) error {
-					formatStringMap[string(item.Key()[3])] = val[0]
-					formatReverseMap[val[0]] = string(item.Key()[3])
+					formatStringMap[string(val)] = item.Key()[3]
+					formatReverseMap[item.Key()[3]] = string(val)
 					return nil
 				})
 				if err != nil {
@@ -112,7 +113,11 @@ func readAvailability() {
 			}
 			return nil
 		})
-		return
+		if os.Getenv("LOAD_ONLY") == "true" {
+			log.Info().Msg("load only mode, running load anyway")
+		} else {
+			return
+		}
 	}
 
 	var gzr *gzip.Reader
@@ -229,10 +234,10 @@ func readAvailability() {
 		}
 		// pack ints into byte array
 		packedBytes := make([]byte, 8+len(formats))
-		binary.BigEndian.PutUint16(packedBytes, mediaCounts.OwnedCount)
-		binary.BigEndian.PutUint16(packedBytes, mediaCounts.AvailableCount)
-		binary.BigEndian.PutUint16(packedBytes, mediaCounts.HoldsCount)
-		binary.BigEndian.PutUint16(packedBytes, uint16(mediaCounts.EstimatedWaitDays))
+		binary.BigEndian.PutUint16(packedBytes[0:], mediaCounts.OwnedCount)
+		binary.BigEndian.PutUint16(packedBytes[2:], mediaCounts.AvailableCount)
+		binary.BigEndian.PutUint16(packedBytes[4:], mediaCounts.HoldsCount)
+		binary.BigEndian.PutUint16(packedBytes[6:], uint16(mediaCounts.EstimatedWaitDays))
 		maKey := getMediaAvailabilityKey(id, libraryIdInt)
 		laKey := getLibraryAvailabilityKey(libraryIdInt, id)
 		for i, format := range formats {
@@ -260,6 +265,19 @@ func readAvailability() {
 		log.Err(err)
 	}
 	gzr.Close()
+	// write format map into badger
+	for format, formatInt := range formatStringMap {
+		err := db.Update(func(txn *badger.Txn) error {
+			err := txn.Set(getFormatKey(formatInt), []byte(format))
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			log.Err(err)
+		}
+	}
 	log.Info().Msg("done reading availability")
 }
 
@@ -306,34 +324,50 @@ func getLibraryAvailabilityPrefix(libraryId uint16) []byte {
 	return prefix
 }
 
+func decodeMediaCounts(data []byte) (*MediaCounts, error) {
+	if len(data) < 8 {
+		return nil, fmt.Errorf("data too short")
+	}
+	counts := &MediaCounts{
+		OwnedCount:        binary.BigEndian.Uint16(data[0:2]),
+		AvailableCount:    binary.BigEndian.Uint16(data[2:4]),
+		HoldsCount:        binary.BigEndian.Uint16(data[4:6]),
+		EstimatedWaitDays: int16(binary.BigEndian.Uint16(data[6:8])),
+		Formats:           data[8:],
+	}
+	return counts, nil
+}
+
 func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseUint(r.URL.Query().Get("id"), 10, 32)
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	media, _ := mediaMap.Get(uint32(id))
-	log.Info().Msgf("/api/availability media: %v", NewSearchResult(media))
+	var availability AvailabilityResponse
 	var results []LibraryMediaCounts
 	err = db.View(func(txn *badger.Txn) error {
+		media, err := getMedia(uint32(id))
+		if err != nil {
+			return err
+		}
+		log.Info().Msgf("/api/availability media: %v", NewSearchResult(media))
 		prefix := getMediaAvailabilityPrefix(uint32(id))
 		log.Info().Msgf("availability using prefix: %x", prefix)
 		opt := badger.DefaultIteratorOptions
 		opt.Prefix = prefix
 		iter := txn.NewIterator(opt)
 		defer iter.Close()
-		for iter.Rewind(); iter.Valid(); iter.Next() {
+		for iter.Rewind(); iter.ValidForPrefix(prefix); iter.Next() {
 			item := iter.Item()
-			log.Trace().Msgf("found item with key: %x", item.Key()) // Log the key
 			err := item.Value(func(val []byte) error {
+				log.Debug().Msgf("found item with key: %x and val: %x", item.Key(), val)
 				availabilityBytes := val
 				libraryId := binary.BigEndian.Uint16(item.Key()[6:])
-				counts := &MediaCounts{
-					OwnedCount:        binary.BigEndian.Uint16(availabilityBytes[0:2]),
-					AvailableCount:    binary.BigEndian.Uint16(availabilityBytes[2:4]),
-					HoldsCount:        binary.BigEndian.Uint16(availabilityBytes[4:6]),
-					EstimatedWaitDays: int16(binary.BigEndian.Uint16(availabilityBytes[6:8])),
-					Formats:           availabilityBytes[8:],
+				counts, err := decodeMediaCounts(availabilityBytes)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to decode media counts")
+					return nil
 				}
 				library, exists := libraryMap[libraryId]
 				if !exists {
@@ -353,12 +387,12 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		availability = AvailabilityResponse{
+			SearchResult: NewSearchResult(media),
+			Availability: results,
+		}
 		return nil
 	})
-	availability := AvailabilityResponse{
-		SearchResult: NewSearchResult(media),
-		Availability: results,
-	}
 	w.Header().Add("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(availability)
 	if err != nil {
@@ -444,7 +478,7 @@ func diffHandler(w http.ResponseWriter, r *http.Request) {
 	for id, leftCount := range leftCounts {
 		_, exists := rightCounts[id]
 		if !exists {
-			mediaRecord, _ := mediaMap.Get(id)
+			mediaRecord, _ := getMedia(id)
 			diff = append(diff, DiffMediaCounts{
 				SearchResult: NewSearchResult(mediaRecord),
 				LibraryMediaCounts: LibraryMediaCounts{
@@ -548,7 +582,7 @@ func intersectHandler(w http.ResponseWriter, r *http.Request) {
 	for id, leftCount := range leftMedia {
 		rightCount, exists := rightMedia[id]
 		if exists {
-			media, _ := mediaMap.Get(id)
+			media, _ := getMedia(id)
 			intersect = append(intersect, IntersectMediaCounts{
 				SearchResult: NewSearchResult(media),
 				LeftLibraryMediaCounts: LibraryMediaCounts{
@@ -628,7 +662,7 @@ func uniqueHandler(w http.ResponseWriter, r *http.Request) {
 				countIterations++
 			}
 			if countIterations == 1 {
-				mediaRecord, _ := mediaMap.Get(mediaId)
+				mediaRecord, _ := getMedia(mediaId)
 				unique = append(unique, UniqueMediaCounts{
 					SearchResult: NewSearchResult(mediaRecord),
 					MediaCounts:  count,

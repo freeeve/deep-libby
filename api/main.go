@@ -79,12 +79,13 @@ func main() {
 	// this one is fast and libraryIds need to be loaded before availability/media
 	readLibraries()
 	if os.Getenv("LOAD_ONLY") == "true" {
+		readMedia()
 		readAvailability()
 		log.Info().Msg("shutting down")
 		os.Exit(0)
 	}
-	go readAvailability()
-	go readMedia()
+	readMedia()
+	readAvailability()
 
 	rootServeMux := http.NewServeMux()
 	uiServeMux := http.NewServeMux()
@@ -145,8 +146,6 @@ func calculateMemoryUsage(v interface{}) int {
 }
 
 func memoryHandler(writer http.ResponseWriter, request *http.Request) {
-	log.Info().Msgf("Memory usage of mediaMap: %d bytes\n", calculateMemoryUsage(mediaMap.m))
-	// log.Info().Msgf("Memory usage of availabilityMap: %d bytes\n", calculateMemoryUsage(availabilityMap))
 	log.Info().Msgf("Memory usage of libraryMap: %d bytes\n", calculateMemoryUsage(libraryMap))
 	sum := uint64(0)
 	formatMap.Range(func(key, value interface{}) bool {
@@ -181,12 +180,6 @@ func memoryHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func uiHandler(w http.ResponseWriter, r *http.Request) {
-	if !dataLoaded {
-		w.Header().Add("Content-Type", "text/html")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(fmt.Sprintf("server is initializing. please refresh in a minute... (%1.1f%% loaded)", float32(mediaMap.Len())/3200000.0*100.0)))
-		return
-	}
 	uiPrefix := "ui"
 	var err error
 	if uiCache == nil {
