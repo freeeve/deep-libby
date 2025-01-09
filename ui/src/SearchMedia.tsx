@@ -184,6 +184,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
         searchComponent = <div style={{width: '100%'}}>
             <div style={{fontSize: 24, textDecoration: 'underline'}}>
                 DeepLibby Search
+                {/*
                 <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/diff/')}>Library Diff</span>
                     </span>
@@ -193,6 +194,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/unique/')}>Library Unique</span>
                     </span>
+                */}
                 <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/libraries')}>Favorite Libraries</span>
                     </span>
@@ -216,6 +218,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
     } else {
         searchComponent = <div style={{width: '100%'}}>
             <div style={{fontSize: 24, textDecoration: 'underline'}}>
+                {/*
                 <div style={{cursor: 'pointer'}}>
                     <div onClick={() => navigate('/diff/')}>Library Diff</div>
                 </div>
@@ -225,6 +228,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 <div style={{cursor: 'pointer'}}>
                     <div onClick={() => navigate('/unique/')}>Library Unique</div>
                 </div>
+                */}
                 <div style={{cursor: 'pointer'}}>
                     <div onClick={() => navigate('/libraries')}>Favorite Libraries</div>
                 </div>

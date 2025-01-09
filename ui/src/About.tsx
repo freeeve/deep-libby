@@ -14,6 +14,13 @@ export default function About() {
                 The source code for this site is available on <a href="https://github.com/freeeve/deep-libby">github</a>.
             </p>
             <h2>Changelog</h2>
+            <h3>Version 2025-01-06:</h3>
+            <ul>
+                <li>
+                    Temporarily removed diff/unique/indersect pages, as they were not working correctly and caused the
+                    server to be unstable. I will re-enable them when I have time to optimize them. Sorry!
+                </li>
+            </ul>
             <h3>Version 2024-12-10:</h3>
             <ul>
                 <li>
