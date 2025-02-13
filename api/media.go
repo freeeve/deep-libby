@@ -232,6 +232,7 @@ func indexMedia(media *Media) {
 	indexStrings(media.Languages, &languageMap, media.Id)
 	indexStrings(media.Formats, &formatMap, media.Id)
 	search.Index(" "+media.Title+" ", media.Id)
+	search.Index(" "+media.Subtitle+" ", media.Id)
 	search.Index(" "+media.Publisher+" ", media.Id)
 	search.Index(fmt.Sprintf(" %s-%d ", media.Publisher, media.PublisherId), media.Id)
 	if media.Series != "" {

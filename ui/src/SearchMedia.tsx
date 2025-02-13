@@ -5,6 +5,7 @@ import {useNavigate} from "react-router-dom";
 interface SearchMedia {
     id: string;
     title: string;
+    subtitle: string;
     creators: { name: string, role: string }[];
     publisher: string;
     languages: string[];
@@ -159,6 +160,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 <div style={{textAlign: 'left', width: isMobile ? '60%' : '70%'}}>
                     <div><strong>{result.title}{result.seriesName !== "" &&
                         <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong></div>
+                    {!isMobile && result.subtitle != '' ? <div>Subtitle: {result.subtitle}</div> : ''}
                     <span>{isMobile ? '' : 'Creators:'} {result.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}</span>
                     <div>{isMobile ? '' : 'Publisher:'} {result.publisher ? result.publisher : ''}</div>
                     <div>{isMobile ? '' : 'Languages:'} {result.languages ? result.languages.join(', ') : ''}</div>
