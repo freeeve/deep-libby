@@ -12,6 +12,8 @@ interface SelectedMedia {
     title: string;
     subtitle: string;
     creators: { name: string, role: string }[];
+    publisher: string;
+    publisherId: number;
     languages: string[];
     formats: string[];
     description: string;
@@ -296,6 +298,13 @@ export default function Availability() {
                                 <strong>#{selectedMedia.seriesReadOrder} in {selectedMedia.seriesName}</strong></div>}
                             <div>
                                 <strong>Creators:</strong> {selectedMedia.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}
+                            </div>
+                            <div>
+                                <strong>Publisher: </strong>
+                                {/*<a href={'https://tlc.overdrive.com/search/publisherId?query=' + selectedMedia.publisherId}>
+                                    {selectedMedia.publisher}
+                                </a>*/}
+                                {selectedMedia.publisher}
                             </div>
                             <div><strong>Languages:</strong> {selectedMedia.languages.join(', ')}</div>
                             <div><strong>Formats (note that not all libraries have all formats--see format column

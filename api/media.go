@@ -37,6 +37,8 @@ type Media struct {
 	Title           string
 	Languages       []string
 	Creators        []MediaCreator
+	Publisher       string
+	PublisherId     uint32
 	Formats         []string
 	CoverUrl        string
 	Subtitle        string
@@ -167,6 +169,10 @@ func handleRecord(record []string) *Media {
 	if err != nil {
 		panic(err)
 	}
+	publisherId, err := strconv.ParseUint(record[12], 10, 32)
+	if err != nil {
+		panic(err)
+	}
 	seriesReadOrder, err := strconv.Atoi(record[9])
 	if err != nil {
 		log.Error().Err(err)
@@ -175,6 +181,8 @@ func handleRecord(record []string) *Media {
 		Id:              uint32(mediaId),
 		Title:           record[1],
 		Creators:        creators,
+		Publisher:       record[11],
+		PublisherId:     uint32(publisherId),
 		Languages:       languages,
 		CoverUrl:        record[4],
 		Formats:         formats,
@@ -224,6 +232,8 @@ func indexMedia(media *Media) {
 	indexStrings(media.Languages, &languageMap, media.Id)
 	indexStrings(media.Formats, &formatMap, media.Id)
 	search.Index(" "+media.Title+" ", media.Id)
+	search.Index(" "+media.Publisher+" ", media.Id)
+	search.Index(fmt.Sprintf(" %s-%d ", media.Publisher, media.PublisherId), media.Id)
 	if media.Series != "" {
 		search.Index(fmt.Sprintf("#%d", media.SeriesReadOrder), media.Id)
 		search.Index(" "+media.Series+" ", media.Id)

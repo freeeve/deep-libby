@@ -28,6 +28,8 @@ type SearchResult struct {
 	Id              uint32         `json:"id"`
 	Title           string         `json:"title"`
 	Creators        []MediaCreator `json:"creators"`
+	Publisher       string         `json:"publisher"`
+	PublisherId     uint32         `json:"publisherId"`
 	CoverUrl        string         `json:"coverUrl"`
 	Subtitle        string         `json:"subtitle"`
 	Description     string         `json:"description"`
@@ -263,6 +265,8 @@ func NewSearchResult(media *Media) *SearchResult {
 		Subtitle:        media.Subtitle,
 		SeriesName:      media.Series,
 		SeriesReadOrder: media.SeriesReadOrder,
+		Publisher:       media.Publisher,
+		PublisherId:     media.PublisherId,
 	}
 	return result
 }

@@ -14,6 +14,12 @@ export default function About() {
                 The source code for this site is available on <a href="https://github.com/freeeve/deep-libby">github</a>.
             </p>
             <h2>Changelog</h2>
+            <h3>Version 2025-02-13:</h3>
+            <ul>
+                <li>
+                    Added publisher name to search results as well as inline search.
+                </li>
+            </ul>
             <h3>Version 2025-01-06:</h3>
             <ul>
                 <li>

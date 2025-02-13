@@ -6,6 +6,7 @@ interface SearchMedia {
     id: string;
     title: string;
     creators: { name: string, role: string }[];
+    publisher: string;
     languages: string[];
     formats: string[];
     coverUrl: string;
@@ -159,6 +160,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                     <div><strong>{result.title}{result.seriesName !== "" &&
                         <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong></div>
                     <span>{isMobile ? '' : 'Creators:'} {result.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}</span>
+                    <div>{isMobile ? '' : 'Publisher:'} {result.publisher ? result.publisher : ''}</div>
                     <div>{isMobile ? '' : 'Languages:'} {result.languages ? result.languages.join(', ') : ''}</div>
                     <div>{isMobile ? '' : 'Formats:'} {result.formats ? result.formats.join(', ') : ''}</div>
                 </div>
@@ -203,7 +205,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                     </span>
             </div>
             <input type="text"
-                   placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
+                   placeholder="search here. inline filters for language, format, title, author, publisher. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}
             />
@@ -238,7 +240,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
             </div>
             <div style={{fontSize: 24, paddingTop: 5}}>DeepLibby Search</div>
             <input type="text"
-                   placeholder="search here. inline filters for language, format, title, author. 'tomorrow zevin kindle english' for example"
+                   placeholder="search here. inline filters for language, format, title, author, publisher. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}
             />
