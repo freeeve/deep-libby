@@ -161,7 +161,12 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                     <div>
                         <strong>{result.title}{result.seriesName !== "" &&
                         <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong>
-                        <a href={'/availability/' + result.id} target={"_blank"} onClick={(event)=> event.stopPropagation()}>&#x2197;</a>
+                        <a href={'/availability/' + result.id}
+                           style={{color: 'white'}}
+                           target={"_blank"}
+                           onClick={(event)=> event.stopPropagation()}>
+                            &nbsp;&#x2197;
+                        </a>
                     </div>
                     {!isMobile && result.subtitle != '' ? <div>Subtitle: {result.subtitle}</div> : ''}
                     <span>{isMobile ? '' : 'Creators:'} {result.creators.map((author) => author.name + ' (' + author.role + ')').join(', ')}</span>
