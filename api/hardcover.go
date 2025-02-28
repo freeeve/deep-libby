@@ -170,7 +170,7 @@ func getHardcoverBooksWithIsbns(userId string) []map[string]interface{} {
 	return bookDetails
 }
 
-func searchMediaByIsbns(isbns []string, additionalFilters string, favorites []string) []*SearchResult {
+func searchMediaByIsbns(isbns []string, additionalFilters string) []*SearchResult {
 	resultMap := make(map[uint32]*SearchResult)
 	for _, isbn := range isbns {
 		ids := search.Search(isbn + " " + additionalFilters)
@@ -191,7 +191,7 @@ func searchMediaByIsbns(isbns []string, additionalFilters string, favorites []st
 	return results
 }
 
-func searchMediaByUsername(username, additionalFilters string, favorites []string) []*SearchResult {
+func searchMediaByUsername(username, additionalFilters string) []*SearchResult {
 	userId := getUserId(username)
 	if userId == "" {
 		log.Error().Msg("failed to get user ID")
@@ -213,28 +213,19 @@ func searchMediaByUsername(username, additionalFilters string, favorites []strin
 		}
 	}
 
-	return searchMediaByIsbns(isbns, additionalFilters, favorites)
+	return searchMediaByIsbns(isbns, additionalFilters)
 }
 
 func searchMediaByUsernameHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	additionalFilters := r.URL.Query().Get("additionalFilters")
-	favoritesParam := r.URL.Query().Get("favorites")
+	log.Info().Msgf("Searching media for user: %s", username)
 	if username == "" {
 		http.Error(w, "Missing username", http.StatusBadRequest)
 		return
 	}
 
-	var favorites []string
-	if favoritesParam != "" {
-		err := json.Unmarshal([]byte(favoritesParam), &favorites)
-		if err != nil {
-			http.Error(w, "Invalid favorites parameter", http.StatusBadRequest)
-			return
-		}
-	}
-
-	results := searchMediaByUsername(username, additionalFilters, favorites)
+	results := searchMediaByUsername(username, additionalFilters)
 	if results == nil {
 		http.Error(w, "Failed to search media", http.StatusInternalServerError)
 		return

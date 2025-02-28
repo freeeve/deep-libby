@@ -200,6 +200,7 @@ export default function Hardcover() {
         <div>
             <SearchMedia></SearchMedia>
             <h2>Hardcover Search (want to read)</h2>
+            <p>Searches your favorite libraries (see link above) for your want to read books from your <a href={"https://hardcover.app"}>hardcover</a> profile.</p>
             <div style={{marginBottom: 20}}>
                 <span style={{marginBottom: 20}}>
                     <label htmlFor="username">Hardcover user name:</label>
