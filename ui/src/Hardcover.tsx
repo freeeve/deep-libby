@@ -130,8 +130,8 @@ export default function Hardcover() {
                     let url = new URL(`https://thunder.api.overdrive.com/v2/libraries/${favorite}/media/availability`);
                     await fetch(url, {
                         method: 'POST',
-                        body: JSON.stringify({ids: mediaIds}),
-                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ids: mediaIds }),
+                        headers: { 'Content-Type': 'application/json' },
                     })
                         .then(response => response.json())
                         .then(availability => {
@@ -173,6 +173,16 @@ export default function Hardcover() {
                             console.error('Error:', error);
                         });
                 }
+
+                // Set "calculating..." results to "not found at favorites"
+                const finalResults = updatedResults.map((result: any) => {
+                    if (result.availableNowFavorites === "calculating...") {
+                        result.availableNowFavorites = "not found at favorites";
+                    }
+                    return result;
+                });
+                setSearchResults([...finalResults]);
+
                 setLoading(false);
             })
             .catch(error => {
