@@ -7,6 +7,7 @@ import Diff from "./Diff.tsx";
 import Intersect from "./Intersect.tsx";
 import Unique from "./Unique.tsx";
 import Libraries from "./Libraries.tsx";
+import Hardcover from "./Hardcover.tsx";
 import ReactGA from 'react-ga4';
 
 ReactGA.initialize('G-CDPWS8N9W6')
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/unique/:libraryId" element={<Unique/>}/>
                 <Route path="/about" element={<About/>}/>
                 <Route path="/libraries" element={<Libraries/>}/>
+                <Route path="/hardcover" element={<Hardcover/>}/>
             </Routes>
         </BrowserRouter>
     )

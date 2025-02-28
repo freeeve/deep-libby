@@ -50,6 +50,8 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to open BadgerDB")
 	}
 	defer db.Close()
+	// go getAllMedia()
+	//go getAllMediaIndividually()
 	/*
 		go func() {
 			fmt.Println(http.ListenAndServe("localhost:6060", nil))
@@ -100,6 +102,7 @@ func main() {
 	apiServeMux.Handle("GET /api/unique", gziphandler.GzipHandler(http.HandlerFunc(uniqueHandler)))
 	apiServeMux.Handle("GET /api/memory", gziphandler.GzipHandler(http.HandlerFunc(memoryHandler)))
 	apiServeMux.Handle("GET /api/search-debug", gziphandler.GzipHandler(http.HandlerFunc(searchDebugHandler)))
+	apiServeMux.Handle("GET /api/search-hardcover", gziphandler.GzipHandler(http.HandlerFunc(searchMediaByUsernameHandler)))
 
 	corsAPIMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers

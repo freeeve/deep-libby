@@ -361,7 +361,7 @@ func availabilityHandler(w http.ResponseWriter, r *http.Request) {
 		for iter.Rewind(); iter.ValidForPrefix(prefix); iter.Next() {
 			item := iter.Item()
 			err := item.Value(func(val []byte) error {
-				log.Debug().Msgf("found item with key: %x and val: %x", item.Key(), val)
+				log.Trace().Msgf("found item with key: %x and val: %x", item.Key(), val)
 				availabilityBytes := val
 				libraryId := binary.BigEndian.Uint16(item.Key()[6:])
 				counts, err := decodeMediaCounts(availabilityBytes)

@@ -154,7 +154,7 @@ func (s *SearchIndex) Search(query string) []uint32 {
 	query = strings.Replace(query, " & ", " ", -1)
 	query = strings.Replace(query, " by ", " ", -1)
 	ngrams := getNgrams(query)
-	log.Debug().Any("ngrams", ngrams).Msg("ngrams...")
+	log.Trace().Any("ngrams", ngrams).Msg("ngrams...")
 	var results *roaring.Bitmap
 	for _, ngram := range ngrams {
 		bitmap, exists := s.Get(ngram)

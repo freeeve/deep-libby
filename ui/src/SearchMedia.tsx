@@ -160,11 +160,11 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 <div style={{textAlign: 'left', width: isMobile ? '60%' : '70%'}}>
                     <div>
                         <strong>{result.title}{result.seriesName !== "" &&
-                        <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong>
+                            <span> (#{result.seriesReadOrder} in {result.seriesName})</span>}</strong>
                         <a href={'/availability/' + result.id}
                            style={{color: 'white'}}
                            target={"_blank"}
-                           onClick={(event)=> event.stopPropagation()}>
+                           onClick={(event) => event.stopPropagation()}>
                             &nbsp;&#x2197;
                         </a>
                     </div>
@@ -210,6 +210,9 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 <span style={{marginLeft: 50, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/libraries')}>Favorite Libraries</span>
                     </span>
+                <span style={{marginLeft: 50, cursor: 'pointer'}}>
+                    <span onClick={() => navigate('/hardcover')}>Hardcover Search</span>
+                </span>
                 <span style={{marginLeft: 100, cursor: 'pointer'}}>
                         <span onClick={() => navigate('/about')}>About</span>
                     </span>
@@ -243,6 +246,9 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                 */}
                 <div style={{cursor: 'pointer'}}>
                     <div onClick={() => navigate('/libraries')}>Favorite Libraries</div>
+                </div>
+                <div style={{cursor: 'pointer'}}>
+                    <div onClick={() => navigate('/hardcover')}>Hardcover Search</div>
                 </div>
                 <div style={{cursor: 'pointer'}}>
                     <div onClick={() => navigate('/about')}>About</div>

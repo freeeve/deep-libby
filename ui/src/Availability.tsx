@@ -45,13 +45,6 @@ interface AvailabilityItem {
     estimatedWaitDays: number;
 }
 
-interface Library {
-    id: string;
-    websiteId: number;
-    name: string;
-    isConsortium: boolean;
-}
-
 interface GridOptions {
     api: any;
 }
@@ -241,41 +234,10 @@ export default function Availability() {
     };
 
     useEffect(() => {
-        let startTime = new Date().getTime();
         let favorites = JSON.parse(localStorage.getItem('favoriteIds') || '[]');
-        let oldFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-        if (favorites.length == 0 && oldFavorites.length > 0) {
-            console.log('oldFavorites', oldFavorites, 'favorites', favorites);
-            let url = new URL('/api/libraries', baseUrl);
-            fetch(url, {
-                method: 'GET',
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    let libraries = data.libraries;
-                    oldFavorites.forEach((favWebsiteId: number) => {
-                        libraries
-                            .filter((l: Library) => l.websiteId === favWebsiteId)
-                            .forEach((library: Library) => {
-                                console.log('adding favorite', library.id, 'for websiteId', library.websiteId);
-                                favorites.push(library.id);
-                            });
-                        localStorage.setItem('favoriteIds', JSON.stringify(favorites));
-                    });
-                    console.log('getFavorites took', new Date().getTime() - startTime, 'ms');
-                    setFavorites(favorites);
-                    if (mediaId) {
-                        clickMedia({id: mediaId}, favorites);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error:', error);
-                });
-        } else {
-            setFavorites(favorites);
-            if (mediaId) {
-                clickMedia({id: mediaId}, favorites);
-            }
+        setFavorites(favorites);
+        if (mediaId) {
+            clickMedia({id: mediaId}, favorites);
         }
     }, []);
 

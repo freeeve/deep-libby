@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"encoding/gob"
 	"encoding/json"
@@ -12,9 +13,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dgraph-io/badger/v4"
+	_ "github.com/marcboeker/go-duckdb"
 	"github.com/rs/zerolog/log"
 	"io"
 	"math"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +34,167 @@ type MediaCreator struct {
 
 var formatMap sync.Map
 var languageMap sync.Map
+
+type Identifier struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+type overdriveBulkResponse struct {
+	ReserveId string `json:"reserveId"`
+	Subjects  []struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"subjects"`
+	BisacCodes []string `json:"bisacCodes"`
+	Bisac      []struct {
+		Code        string `json:"code"`
+		Description string `json:"description"`
+	} `json:"bisac"`
+	Levels   []interface{} `json:"levels"`
+	Creators []struct {
+		Id       int    `json:"id"`
+		Name     string `json:"name"`
+		Role     string `json:"role"`
+		SortName string `json:"sortName"`
+	} `json:"creators"`
+	Languages []struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"languages"`
+	Imprint struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"imprint"`
+	IsBundledChild bool `json:"isBundledChild"`
+	Ratings        struct {
+		MaturityLevel struct {
+			Id   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"maturityLevel"`
+		NaughtyScore struct {
+			Id   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"naughtyScore"`
+	} `json:"ratings"`
+	Constraints struct {
+		IsDisneyEulaRequired bool `json:"isDisneyEulaRequired"`
+	} `json:"constraints"`
+	ReviewCounts struct {
+		Premium           int `json:"premium"`
+		PublisherSupplier int `json:"publisherSupplier"`
+	} `json:"reviewCounts"`
+	Subtitle                   string `json:"subtitle"`
+	IsPublicDomain             bool   `json:"isPublicDomain"`
+	IsPublicPerformanceAllowed bool   `json:"isPublicPerformanceAllowed"`
+	Publisher                  struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"publisher"`
+	Popularity       int      `json:"popularity"`
+	ShortDescription string   `json:"shortDescription"`
+	FullDescription  string   `json:"fullDescription"`
+	Description      string   `json:"description"`
+	Keywords         []string `json:"keywords"`
+	UnitsSold        int      `json:"unitsSold"`
+	IsBundleChild    bool     `json:"isBundleChild"`
+	Sample           struct {
+		Href string `json:"href"`
+	} `json:"sample"`
+	IsPreReleaseTitle              bool          `json:"isPreReleaseTitle"`
+	EstimatedReleaseDate           time.Time     `json:"estimatedReleaseDate"`
+	VisitorEligible                bool          `json:"visitorEligible"`
+	JuvenileEligible               bool          `json:"juvenileEligible"`
+	YoungAdultEligible             bool          `json:"youngAdultEligible"`
+	BundledContentChildrenTitleIds []interface{} `json:"bundledContentChildrenTitleIds"`
+	Classifications                struct {
+	} `json:"classifications"`
+	Type struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"type"`
+	Covers struct {
+		Cover150Wide struct {
+			Href         string `json:"href"`
+			Height       int    `json:"height"`
+			Width        int    `json:"width"`
+			PrimaryColor struct {
+				Hex string `json:"hex"`
+				Rgb struct {
+					Red   int `json:"red"`
+					Green int `json:"green"`
+					Blue  int `json:"blue"`
+				} `json:"rgb"`
+			} `json:"primaryColor"`
+			IsPlaceholderImage bool `json:"isPlaceholderImage"`
+		} `json:"cover150Wide"`
+		Cover300Wide struct {
+			Href         string `json:"href"`
+			Height       int    `json:"height"`
+			Width        int    `json:"width"`
+			PrimaryColor struct {
+				Hex string `json:"hex"`
+				Rgb struct {
+					Red   int `json:"red"`
+					Green int `json:"green"`
+					Blue  int `json:"blue"`
+				} `json:"rgb"`
+			} `json:"primaryColor"`
+			IsPlaceholderImage bool `json:"isPlaceholderImage"`
+		} `json:"cover300Wide"`
+		Cover510Wide struct {
+			Href         string `json:"href"`
+			Height       int    `json:"height"`
+			Width        int    `json:"width"`
+			PrimaryColor struct {
+				Hex string `json:"hex"`
+				Rgb struct {
+					Red   int `json:"red"`
+					Green int `json:"green"`
+					Blue  int `json:"blue"`
+				} `json:"rgb"`
+			} `json:"primaryColor"`
+			IsPlaceholderImage bool `json:"isPlaceholderImage"`
+		} `json:"cover510Wide"`
+	} `json:"covers"`
+	Id                   string    `json:"id"`
+	FirstCreatorName     string    `json:"firstCreatorName"`
+	FirstCreatorId       int       `json:"firstCreatorId"`
+	FirstCreatorSortName string    `json:"firstCreatorSortName"`
+	Title                string    `json:"title"`
+	SortTitle            string    `json:"sortTitle"`
+	StarRating           float64   `json:"starRating"`
+	StarRatingCount      int       `json:"starRatingCount"`
+	PublishDate          time.Time `json:"publishDate"`
+	PublishDateText      string    `json:"publishDateText"`
+	Formats              []struct {
+		Identifiers              []Identifier  `json:"identifiers"`
+		Rights                   []interface{} `json:"rights"`
+		OnSaleDateUtc            time.Time     `json:"onSaleDateUtc"`
+		HasAudioSynchronizedText bool          `json:"hasAudioSynchronizedText"`
+		IsBundleParent           bool          `json:"isBundleParent"`
+		BundledContent           []interface{} `json:"bundledContent"`
+		FulfillmentType          string        `json:"fulfillmentType"`
+		Id                       string        `json:"id"`
+		Name                     string        `json:"name"`
+		Isbn                     string        `json:"isbn,omitempty"`
+		Sample                   struct {
+			Href string `json:"href"`
+		} `json:"sample,omitempty"`
+		FileSize int `json:"fileSize,omitempty"`
+	} `json:"formats"`
+	PublisherAccount struct {
+		Id   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"publisherAccount"`
+	DetailedSeries struct {
+		SeriesId     int    `json:"seriesId"`
+		SeriesName   string `json:"seriesName"`
+		ReadingOrder string `json:"readingOrder"`
+		Rank         int    `json:"rank"`
+	} `json:"detailedSeries"`
+	Series string `json:"series"`
+}
 
 type Media struct {
 	Id              uint32
@@ -50,6 +214,232 @@ type Media struct {
 
 func getMediaKey(mediaId uint32) []byte {
 	return append([]byte("mk"), []byte(strconv.Itoa(int(mediaId)))...)
+}
+
+func getAllMedia() {
+	log.Info().Msg("starting getAllMedia")
+	idsPerQuery := 100
+	db, err := sql.Open("duckdb", "media.db")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open database")
+		return
+	}
+	defer db.Close()
+
+	_, err = db.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS media (
+        id INTEGER primary key,
+        title STRING,
+        creators JSON,
+        publisher STRING,
+        publisherId INTEGER,
+        publishDate DATE,
+        languages STRING,
+        coverUrl STRING,
+        formats JSON,
+        subtitle STRING,
+        description STRING,
+        series STRING,
+        seriesReadOrder STRING)`)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create table")
+		return
+	}
+
+	for i := 1; i < 100000000; i += idsPerQuery {
+		time.Sleep(1 * time.Second)
+		mediaIds := strings.Builder{}
+		for j := 0; j < idsPerQuery; j++ {
+			mediaIds.WriteString(strconv.Itoa(i + j))
+			mediaIds.WriteString(",")
+		}
+		log.Debug().Int("idStart", i).Int("idEnd", i+idsPerQuery).Msg("getting ids getAllMedia")
+		url := fmt.Sprintf("https://thunder.api.overdrive.com/v2/media/bulk?titleIds=%s&x-client-id=dewey", mediaIds.String())
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get response from API")
+			i -= idsPerQuery
+			continue
+		}
+		defer resp.Body.Close()
+		var overdriveBulkResponses []overdriveBulkResponse
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to read response")
+			i -= idsPerQuery
+			continue
+		}
+		if strings.Contains(string(buf), "Media not found.") || strings.Contains(string(buf), "An unexpected error has occurred") {
+			log.Info().Msg("media not found for range")
+			continue
+		}
+		err = json.Unmarshal(buf, &overdriveBulkResponses)
+		if err != nil {
+			log.Error().Err(err).Str("body", string(buf)).Msg("failed to decode response")
+			i -= idsPerQuery
+			continue
+		}
+
+		insertStmt, err := db.PrepareContext(context.Background(), `INSERT INTO media
+            (id, title, creators, publisher, publisherId, languages, publishDate, coverUrl, formats, subtitle, description, series, seriesReadOrder)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to prepare insert statement")
+			return
+		}
+		if len(overdriveBulkResponses) == 0 {
+			log.Info().Msg("no media found")
+			break
+		}
+		for _, overdriveBulkResponse := range overdriveBulkResponses {
+			languages := ""
+			for _, language := range overdriveBulkResponse.Languages {
+				languages += language.Name + ";"
+			}
+			creatorsJSON, err := json.Marshal(overdriveBulkResponse.Creators)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to marshal creators")
+				continue
+			}
+			formatsJSON, err := json.Marshal(overdriveBulkResponse.Formats)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to marshal formats")
+				continue
+			}
+
+			_, err = insertStmt.ExecContext(context.Background(),
+				overdriveBulkResponse.Id,
+				overdriveBulkResponse.Title,
+				string(creatorsJSON),
+				overdriveBulkResponse.Publisher.Name,
+				overdriveBulkResponse.Publisher.Id,
+				languages,
+				overdriveBulkResponse.PublishDate,
+				overdriveBulkResponse.Covers.Cover150Wide.Href,
+				string(formatsJSON),
+				overdriveBulkResponse.Subtitle,
+				overdriveBulkResponse.Description,
+				overdriveBulkResponse.Series,
+				overdriveBulkResponse.DetailedSeries.ReadingOrder,
+			)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to insert record")
+			} else {
+				log.Trace().Msgf("successfully inserted record with id: %d", overdriveBulkResponse.Id)
+			}
+		}
+	}
+	log.Info().Msg("done getAllMedia")
+}
+
+func getAllMediaIndividually() {
+	log.Info().Msg("starting getAllMediaIndividually")
+	db, err := sql.Open("duckdb", "media.db")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to open database")
+		return
+	}
+	defer db.Close()
+
+	fetched := false
+	for i := 7686277; i < 100000000; i += 1 {
+		if fetched {
+			time.Sleep(100 * time.Millisecond)
+			fetched = false
+		}
+		res, err := db.QueryContext(context.Background(), `select * from media where id = ?`, i)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to query db")
+			continue
+		}
+		if res.Next() {
+			log.Trace().Msgf("media with id %d already exists", i)
+			continue
+		}
+		url := fmt.Sprintf("https://thunder.api.overdrive.com/v2/media/bulk?titleIds=%d&x-client-id=dewey", i)
+		log.Debug().Int("id", i).Msg("getting id getAllMediaIndividually")
+		resp, err := http.Get(url)
+		fetched = true
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get response from API")
+			i -= 1
+			continue
+		}
+		var overdriveBulkResponses []overdriveBulkResponse
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to read response")
+			i -= 1
+			continue
+		}
+		resp.Body.Close()
+
+		if strings.Contains(string(buf), "Media not found.") {
+			log.Debug().Msg("media not found")
+			continue
+		}
+		if strings.Contains(string(buf), "An unexpected error has occurred") {
+			log.Info().Msg("An unexpected error has occurred")
+			continue
+		}
+		err = json.Unmarshal(buf, &overdriveBulkResponses)
+		if err != nil {
+			log.Error().Err(err).Str("body", string(buf)).Msg("failed to decode response")
+			i -= 1
+			continue
+		}
+
+		insertStmt, err := db.PrepareContext(context.Background(), `INSERT INTO media
+            (id, title, creators, publisher, publisherId, languages, publishDate, coverUrl, formats, subtitle, description, series, seriesReadOrder)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to prepare insert statement")
+			return
+		}
+		if len(overdriveBulkResponses) == 0 {
+			log.Info().Msg("no media found")
+			insertStmt.Close()
+			break
+		}
+		for _, overdriveBulkResponse := range overdriveBulkResponses {
+			languages := ""
+			for _, language := range overdriveBulkResponse.Languages {
+				languages += language.Name + ";"
+			}
+			creatorsJSON, err := json.Marshal(overdriveBulkResponse.Creators)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to marshal creators")
+				continue
+			}
+			formatsJSON, err := json.Marshal(overdriveBulkResponse.Formats)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to marshal formats")
+				continue
+			}
+
+			_, err = insertStmt.ExecContext(context.Background(),
+				overdriveBulkResponse.Id,
+				overdriveBulkResponse.Title,
+				string(creatorsJSON),
+				overdriveBulkResponse.Publisher.Name,
+				overdriveBulkResponse.Publisher.Id,
+				languages,
+				overdriveBulkResponse.PublishDate,
+				overdriveBulkResponse.Covers.Cover150Wide.Href,
+				string(formatsJSON),
+				overdriveBulkResponse.Subtitle,
+				overdriveBulkResponse.Description,
+				overdriveBulkResponse.Series,
+				overdriveBulkResponse.DetailedSeries.ReadingOrder,
+			)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to insert record")
+			} else {
+				log.Trace().Msgf("successfully inserted record with id: %d", overdriveBulkResponse.Id)
+			}
+		}
+		insertStmt.Close()
+	}
+	log.Info().Msg("done getAllMedia")
 }
 
 func readMedia() {
