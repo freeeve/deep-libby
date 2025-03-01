@@ -51,7 +51,7 @@ func main() {
 	}
 	defer db.Close()
 	// go getAllMedia()
-	//go getAllMediaIndividually()
+	// go getAllMediaIndividually()
 	/*
 		go func() {
 			fmt.Println(http.ListenAndServe("localhost:6060", nil))

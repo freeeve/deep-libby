@@ -218,7 +218,7 @@ export default function SearchMedia({clickMedia}: SearchMediaProps) {
                     </span>
             </div>
             <input type="text"
-                   placeholder="search here. inline filters for language, format, title, author, publisher. 'tomorrow zevin kindle english' for example"
+                   placeholder="search here. inline filters for language, format, title, author, publisher, isbn/asin. 'tomorrow zevin kindle english' for example"
                    style={{width: '100%', height: 50, fontSize: 24}}
                    onChange={handleInputChange}
             />

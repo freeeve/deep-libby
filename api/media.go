@@ -341,7 +341,7 @@ func getAllMediaIndividually() {
 	defer db.Close()
 
 	fetched := false
-	for i := 7686277; i < 100000000; i += 1 {
+	for i := 7853271; i < 100000000; i += 1 {
 		if fetched {
 			time.Sleep(100 * time.Millisecond)
 			fetched = false
@@ -634,6 +634,12 @@ func indexMedia(media *Media) {
 	}
 	for _, identifier := range media.Ids {
 		search.Index(" "+identifier+" ", media.Id)
+		if len(identifier) == 13 && (strings.HasPrefix(identifier, "979") || strings.HasPrefix(identifier, "978")) {
+			idInt, err := strconv.ParseUint(identifier, 10, 64)
+			if err == nil {
+				search.IndexISBN(idInt, media.Id)
+			}
+		}
 	}
 }
 

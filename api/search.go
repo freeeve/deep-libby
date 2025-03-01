@@ -21,7 +21,8 @@ import (
 
 type SearchIndex struct {
 	sync.RWMutex
-	ngramMap map[string]*ConcurrentBitmap
+	ngramMap     map[string]*ConcurrentBitmap
+	isbn13Lookup map[uint64]uint32
 }
 
 type SearchResult struct {
@@ -46,7 +47,8 @@ var ngramIDQueues = &sync.Map{}
 
 func NewSearchIndex() *SearchIndex {
 	return &SearchIndex{
-		ngramMap: make(map[string]*ConcurrentBitmap),
+		ngramMap:     make(map[string]*ConcurrentBitmap),
+		isbn13Lookup: map[uint64]uint32{},
 	}
 }
 
@@ -115,6 +117,18 @@ func (s *SearchIndex) Index(name string, id uint32) {
 	}
 }
 
+func (s *SearchIndex) IndexISBN(isbn13 uint64, id uint32) {
+	s.isbn13Lookup[isbn13] = id
+}
+
+func (s *SearchIndex) SearchISBN(isbn13 uint64) (uint32, bool) {
+	id, exists := s.isbn13Lookup[isbn13]
+	if !exists {
+		return 0, false
+	}
+	return id, true
+}
+
 func (s *SearchIndex) IndexWG(name string, id uint64, group *sync.WaitGroup) {
 	name = strings.TrimSpace(name)
 	ngrams := getNgrams(name)
@@ -148,6 +162,14 @@ func bitmapWorker(queue chan uint32, bitmap *ConcurrentBitmap, ngram string) {
 }
 
 func (s *SearchIndex) Search(query string) []uint32 {
+	results := s.SearchBitmapResult(query)
+	if results == nil {
+		return []uint32{}
+	}
+	return results.ToArray()
+}
+
+func (s *SearchIndex) SearchBitmapResult(query string) *roaring.Bitmap {
 	query = strings.TrimSpace(query)
 	// TODO remove this hackiness
 	query = strings.Replace(query, " and ", " ", -1)
@@ -169,10 +191,7 @@ func (s *SearchIndex) Search(query string) []uint32 {
 			bitmap.RWMutex.RUnlock()
 		}
 	}
-	if results == nil {
-		return []uint32{}
-	}
-	return results.ToArray()
+	return results
 }
 
 func (s *SearchIndex) Finalize() {
@@ -285,7 +304,6 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	// TODO paginate this better
 	result := map[string][]*SearchResult{}
 	result["results"] = results
 	w.Header().Add("Content-Type", "application/json")

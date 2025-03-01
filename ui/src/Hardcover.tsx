@@ -1,5 +1,4 @@
 import {useState, useEffect} from "react";
-import {useNavigate} from "react-router-dom";
 import {AgGridReact} from "ag-grid-react";
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -41,7 +40,6 @@ export default function Hardcover() {
     const [additionalFilters, setAdditionalFilters] = useState<string>("");
     const [favorites, setFavorites] = useState<string[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-    const navigate = useNavigate();
 
     const columnDefs: ColDef[] = [
         {
@@ -66,8 +64,12 @@ export default function Hardcover() {
                             <a href={params.value.libbyLink} style={{cursor: 'pointer'}}>
                                 {params.value.libraryName}
                             </a>
-                            <span>&nbsp;and {params.value.totalLibraries - 1}</span>
-                            <span>&nbsp;other{params.value.totalLibraries > 2 ? 's' : ''}</span>
+                            {params.value.totalLibraries > 1 &&
+                                <span>
+                                    <span>&nbsp;and {params.value.totalLibraries - 1}</span>
+                                    <span>&nbsp;other{params.value.totalLibraries > 2 ? 's' : ''}</span>
+                                </span>
+                            }
                         </span>
                     );
                 }
@@ -126,12 +128,12 @@ export default function Hardcover() {
                 setSearchResults(updatedResults);
 
                 for (const favorite of favorites) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await new Promise(resolve => setTimeout(resolve, 1));
                     let url = new URL(`https://thunder.api.overdrive.com/v2/libraries/${favorite}/media/availability`);
                     await fetch(url, {
                         method: 'POST',
-                        body: JSON.stringify({ ids: mediaIds }),
-                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ids: mediaIds}),
+                        headers: {'Content-Type': 'application/json'},
                     })
                         .then(response => response.json())
                         .then(availability => {
@@ -196,10 +198,6 @@ export default function Hardcover() {
         setFavorites(storedFavorites);
     }, []);
 
-    const onRowClicked = (event: any) => {
-        navigate(`/availability/${event.data.id}`);
-    };
-
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {
             handleSearch();
@@ -210,8 +208,9 @@ export default function Hardcover() {
         <div>
             <SearchMedia></SearchMedia>
             <h2>Hardcover Search (want to read)</h2>
-            <p>Searches your favorite libraries (see link above) for your want to read books from your <a href={"https://hardcover.app"}>hardcover</a> profile.
-            It may take a minute if you have many favorite libraries.</p>
+            <p>Searches your favorite libraries (see link above) for your want to read books from your <a
+                href={"https://hardcover.app"}>hardcover</a> profile.
+                It may take a minute if you have many favorite libraries.</p>
             <div style={{marginBottom: 20}}>
                 <span style={{marginBottom: 20}}>
                     <label htmlFor="username">Hardcover user name:</label>
@@ -249,7 +248,6 @@ export default function Hardcover() {
                         filter: true,
                         resizable: true
                     }}
-                    onRowClicked={onRowClicked}
                 />
             </div>
         </div>
