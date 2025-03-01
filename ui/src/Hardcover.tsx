@@ -146,7 +146,7 @@ export default function Hardcover() {
                                             return false;
                                         }
                                     });
-                                    if (item) {
+                                    if (item && item.availableCopies > 0) {
                                         if (typeof result.availableNowFavorites === 'string') {
                                             result.availableNowFavorites = {
                                                 libraryId: favorite,
