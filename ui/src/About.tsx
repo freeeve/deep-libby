@@ -11,6 +11,9 @@ export default function About() {
                 reddit.
             </p>
             <p>
+                Join the discord: <a href="https://discord.gg/pUuXX9vbwN">https://discord.gg/pUuXX9vbwN</a>
+            </p>
+            <p>
                 The source code for this site is available on <a href="https://github.com/freeeve/deep-libby">github</a>.
             </p>
             <h2>Changelog</h2>
